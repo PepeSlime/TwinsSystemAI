@@ -1,4 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "vite build"
+  "buildCommand": "NITRO_PRESET=vercel vite build"
 }
