@@ -6,6 +6,17 @@ import { type CharacterRarity } from "./rarity";
 export type { CharacterRarity };
 export type Status = "modeling" | "done";
 
+export interface CharacterSummon {
+  id: string;
+  name: string;
+  image_url: string | null;
+  height_m: number | null;
+  scale: number | null;
+  model_sheet_url: string | null;
+  model_sheet_name: string | null;
+  model_sheet_type: string | null;
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -21,6 +32,15 @@ export interface Character {
   model_sheet_url: string | null;
   model_sheet_name: string | null;
   model_sheet_type: string | null;
+  has_summon?: boolean;
+  summons?: CharacterSummon[];
+  summon_name?: string | null;
+  summon_image_url?: string | null;
+  summon_height_m?: number | null;
+  summon_scale?: number | null;
+  summon_model_sheet_url?: string | null;
+  summon_model_sheet_name?: string | null;
+  summon_model_sheet_type?: string | null;
   status: Status;
   completed_at: string | null;
   created_at: string;
@@ -46,6 +66,33 @@ function subscribe(l: () => void) {
 }
 
 function normalize(r: Record<string, unknown>): Character {
+  let summons: CharacterSummon[] = [];
+  if (Array.isArray(r["summons"])) {
+    summons = (r["summons"] as Record<string, unknown>[]).map((s, idx) => ({
+      id: String(s["id"] || `summon-${idx}`),
+      name: String(s["name"] || `Invocação ${idx + 1}`),
+      image_url: (s["image_url"] as string) ?? null,
+      height_m: s["height_m"] == null ? null : Number(s["height_m"]),
+      scale: s["scale"] == null ? null : Number(s["scale"]),
+      model_sheet_url: (s["model_sheet_url"] as string) ?? null,
+      model_sheet_name: (s["model_sheet_name"] as string) ?? null,
+      model_sheet_type: (s["model_sheet_type"] as string) ?? null,
+    }));
+  }
+
+  if (summons.length === 0 && Boolean(r["has_summon"]) && (r["summon_name"] || r["summon_image_url"] || r["summon_height_m"] || r["summon_model_sheet_url"])) {
+    summons = [{
+      id: "legacy-1",
+      name: (r["summon_name"] as string) || "Invocação 1",
+      image_url: (r["summon_image_url"] as string) ?? null,
+      height_m: r["summon_height_m"] == null ? null : Number(r["summon_height_m"]),
+      scale: r["summon_scale"] == null ? null : Number(r["summon_scale"]),
+      model_sheet_url: (r["summon_model_sheet_url"] as string) ?? null,
+      model_sheet_name: (r["summon_model_sheet_name"] as string) ?? null,
+      model_sheet_type: (r["summon_model_sheet_type"] as string) ?? null,
+    }];
+  }
+
   return {
     ...(r as unknown as Character),
     universe: (r["universe"] as string) ?? null,
@@ -53,6 +100,15 @@ function normalize(r: Record<string, unknown>): Character {
     evo_enabled: Boolean(r["evo_enabled"]),
     height_m: r["height_m"] == null ? null : Number(r["height_m"]),
     scale: r["scale"] == null ? null : Number(r["scale"]),
+    has_summon: Boolean(r["has_summon"]),
+    summons,
+    summon_name: (r["summon_name"] as string) ?? summons[0]?.name ?? null,
+    summon_image_url: (r["summon_image_url"] as string) ?? summons[0]?.image_url ?? null,
+    summon_height_m: r["summon_height_m"] == null ? (summons[0]?.height_m ?? null) : Number(r["summon_height_m"]),
+    summon_scale: r["summon_scale"] == null ? (summons[0]?.scale ?? null) : Number(r["summon_scale"]),
+    summon_model_sheet_url: (r["summon_model_sheet_url"] as string) ?? summons[0]?.model_sheet_url ?? null,
+    summon_model_sheet_name: (r["summon_model_sheet_name"] as string) ?? summons[0]?.model_sheet_name ?? null,
+    summon_model_sheet_type: (r["summon_model_sheet_type"] as string) ?? summons[0]?.model_sheet_type ?? null,
     status: r["status"] === "done" ? "done" : "modeling",
   };
 }
@@ -116,11 +172,34 @@ async function uploadIfDataUrl(url: string | null, id: string, kind: string): Pr
 }
 
 export async function saveCharacter(c: Character) {
+  const processedSummons: CharacterSummon[] = await Promise.all(
+    (c.summons ?? []).map(async (s, idx) => {
+      const summonId = s.id || crypto.randomUUID();
+      return {
+        ...s,
+        id: summonId,
+        name: s.name.trim() || `Invocação ${idx + 1}`,
+        image_url: await uploadIfDataUrl(s.image_url, c.id, `summon-${summonId}-image`),
+        model_sheet_url: await uploadIfDataUrl(s.model_sheet_url, c.id, `summon-${summonId}-sheet`),
+      };
+    })
+  );
+
+  const firstSummon = processedSummons[0] ?? null;
+
   const row = {
     ...c,
     rarity: c.rarity ?? "raro",
     image_url: await uploadIfDataUrl(c.image_url, c.id, "image"),
     model_sheet_url: await uploadIfDataUrl(c.model_sheet_url, c.id, "sheet"),
+    summons: processedSummons,
+    summon_name: firstSummon?.name ?? null,
+    summon_image_url: firstSummon?.image_url ?? null,
+    summon_height_m: firstSummon?.height_m ?? null,
+    summon_scale: firstSummon?.scale ?? null,
+    summon_model_sheet_url: firstSummon?.model_sheet_url ?? null,
+    summon_model_sheet_name: firstSummon?.model_sheet_name ?? null,
+    summon_model_sheet_type: firstSummon?.model_sheet_type ?? null,
   };
   const { error } = await supabase.from("characters").upsert(row);
   if (error) throw new Error("Erro ao salvar: " + error.message);

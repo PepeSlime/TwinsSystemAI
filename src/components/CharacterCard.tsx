@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Pencil, Trash2, User } from "lucide-react";
+import { Ghost, Pencil, Trash2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./StatusBadge";
 import { RarityBadge } from "./RarityBadge";
@@ -19,7 +19,30 @@ export function CharacterCard({ c, onEdit, onDelete }: { c: Character; onEdit: (
         <div className="space-y-1 p-4">
           <div className="flex items-center justify-between gap-2">
             <h3 className="truncate text-xl font-bold">{c.name}</h3>
-            <RarityBadge rarity={c.rarity} size="xs" />
+            <div className="flex items-center gap-1 shrink-0">
+              {c.has_summon && (
+                <span
+                  title={
+                    c.summons && c.summons.length > 1
+                      ? `Invocações: ${c.summons.map((s) => s.name).join(", ")}`
+                      : c.summons?.[0]?.name
+                      ? `Invocação: ${c.summons[0].name}`
+                      : c.summon_name
+                      ? `Invocação: ${c.summon_name}`
+                      : "Possui invocação"
+                  }
+                  className="inline-flex items-center gap-0.5 rounded-full bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-violet-500 border border-violet-500/20"
+                >
+                  <Ghost className="h-2.5 w-2.5" />
+                  <span className="hidden sm:inline">
+                    {c.summons && c.summons.length > 1
+                      ? `${c.summons.length} Invocações`
+                      : c.summons?.[0]?.name || c.summon_name || "Invocação"}
+                  </span>
+                </span>
+              )}
+              <RarityBadge rarity={c.rarity} size="xs" />
+            </div>
           </div>
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>{c.height_m ? `${c.height_m.toLocaleString("pt-BR")} m` : "Sem altura"}</span>

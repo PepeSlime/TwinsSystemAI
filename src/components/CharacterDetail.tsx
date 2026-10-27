@@ -10,6 +10,7 @@ import {
   Sliders,
   Sparkles,
   Clapperboard,
+  Ghost,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -21,8 +22,9 @@ import { StatusBadge } from "./StatusBadge";
 import { RarityBadge } from "./RarityBadge";
 import { OverridesGenerator } from "./OverridesGenerator";
 import { AbilityTabs } from "./AbilityTabs";
-import { calculateScale } from "@/lib/scale";
+import { calculateScale, fmt } from "@/lib/scale";
 import { updateCharacter, useSettings, type Character } from "@/lib/store";
+import { cn } from "@/lib/utils";
 
 export function CharacterDetail({ c }: { c: Character }) {
   const settings = useSettings();
@@ -30,6 +32,24 @@ export function CharacterDetail({ c }: { c: Character }) {
   const [open, setOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState<string>("checklist");
   const isPdf = c.model_sheet_type === "application/pdf" || c.model_sheet_url?.startsWith("data:application/pdf");
+
+  const [activeDetailSummonIdx, setActiveDetailSummonIdx] = useState(0);
+
+  const summonsToDisplay = (c.summons && c.summons.length > 0)
+    ? c.summons
+    : (c.has_summon ? [{
+        id: "legacy",
+        name: c.summon_name || "Invocação",
+        image_url: c.summon_image_url ?? null,
+        height_m: c.summon_height_m ?? null,
+        scale: c.summon_scale ?? null,
+        model_sheet_url: c.summon_model_sheet_url ?? null,
+        model_sheet_name: c.summon_model_sheet_name ?? null,
+        model_sheet_type: c.summon_model_sheet_type ?? null,
+      }] : []);
+
+  const safeDetailIdx = Math.min(activeDetailSummonIdx, Math.max(0, summonsToDisplay.length - 1));
+  const currentSummon = summonsToDisplay[safeDetailIdx] ?? summonsToDisplay[0];
 
   return (
     <div className="space-y-6">
@@ -68,6 +88,14 @@ export function CharacterDetail({ c }: { c: Character }) {
             {c.evo_enabled && (
               <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-500">
                 Forma Evo Ativa
+              </span>
+            )}
+            {c.has_summon && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/10 px-2.5 py-0.5 text-xs font-semibold text-violet-500">
+                <Ghost className="h-3.5 w-3.5" />
+                {summonsToDisplay.length > 1
+                  ? `${summonsToDisplay.length} Invocações`
+                  : `Invocação: ${summonsToDisplay[0]?.name || c.summon_name || "Ativa"}`}
               </span>
             )}
           </div>
@@ -164,6 +192,145 @@ export function CharacterDetail({ c }: { c: Character }) {
                   />
                 </div>
               )}
+            </section>
+          )}
+
+          {/* Seção de Invocações */}
+          {c.has_summon && summonsToDisplay.length > 0 && currentSummon && (
+            <section className="space-y-4 rounded-xl border border-violet-500/30 bg-card p-5 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="rounded-lg bg-violet-500/10 p-2 text-violet-500">
+                    <Ghost className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold">
+                      {summonsToDisplay.length > 1
+                        ? `Invocações do Personagem (${summonsToDisplay.length})`
+                        : `Invocação: ${currentSummon.name || "Invocação"}`}
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                      {summonsToDisplay.length > 1
+                        ? "Clique em uma invocação para alternar as medidas e model sheet."
+                        : (currentSummon.height_m
+                            ? `${currentSummon.height_m.toLocaleString("pt-BR")} m de altura`
+                            : "Altura não informada")}
+                      {currentSummon.scale != null && !isNaN(Number(currentSummon.scale)) ? ` · Escala Roblox: × ${fmt(Number(currentSummon.scale))}` : ""}
+                    </p>
+                  </div>
+                </div>
+                <span className="rounded-full bg-violet-500/10 px-2.5 py-1 text-xs font-semibold text-violet-500">
+                  {summonsToDisplay.length > 1
+                    ? `${summonsToDisplay.length} Invocações Vinculadas`
+                    : "Invocação Vinculada"}
+                </span>
+              </div>
+
+              {/* Botões/Abas para alternar entre as invocações */}
+              {summonsToDisplay.length > 1 && (
+                <div className="flex flex-wrap items-center gap-2 pt-1 pb-2">
+                  {summonsToDisplay.map((s, idx) => {
+                    const isSelected = idx === safeDetailIdx;
+                    return (
+                      <button
+                        key={s.id || idx}
+                        type="button"
+                        onClick={() => setActiveDetailSummonIdx(idx)}
+                        className={cn(
+                          "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer",
+                          isSelected
+                            ? "border-violet-500 bg-violet-500/20 text-violet-200 ring-1 ring-violet-500 shadow-sm"
+                            : "border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        )}
+                      >
+                        <Ghost className="h-3.5 w-3.5 text-violet-400" />
+                        <span>{s.name || `Invocação ${idx + 1}`}</span>
+                        {s.height_m && (
+                          <span className="text-[10px] opacity-75 font-mono">({s.height_m}m)</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Detalhes da Invocação Ativa */}
+              <div className="grid gap-6 md:grid-cols-[200px_1fr] items-start pt-2">
+                <div className="aspect-square overflow-hidden rounded-xl border border-border bg-muted shadow-inner">
+                  {currentSummon.image_url ? (
+                    <img
+                      src={currentSummon.image_url}
+                      alt={currentSummon.name || "Invocação"}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground p-4 text-center">
+                      <Ghost className="h-10 w-10 mb-2 opacity-40 text-violet-500" />
+                      <span className="text-xs">Sem foto da invocação</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-5">
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">
+                      {currentSummon.name || `Invocação #${safeDetailIdx + 1}`}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      {currentSummon.height_m
+                        ? `${currentSummon.height_m.toLocaleString("pt-BR")} m de altura`
+                        : "Altura não informada"}
+                      {currentSummon.scale != null && !isNaN(Number(currentSummon.scale)) ? ` · Escala Roblox: × ${fmt(Number(currentSummon.scale))}` : ""}
+                    </p>
+                  </div>
+
+                  {currentSummon.height_m ? (
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold">Cálculo de Escala Roblox da Invocação</h4>
+                      <ScaleResult calc={calculateScale(currentSummon.height_m, settings)} />
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground">
+                      Altura da invocação não informada no cadastro.
+                    </div>
+                  )}
+
+                  {currentSummon.model_sheet_url && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-semibold">Model Sheet da Invocação</h4>
+                        <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold text-violet-500">
+                          Arquivo Técnico
+                        </span>
+                      </div>
+                      {currentSummon.model_sheet_type === "application/pdf" ||
+                      currentSummon.model_sheet_url.startsWith("data:application/pdf") ? (
+                        <a
+                          href={currentSummon.model_sheet_url}
+                          download={currentSummon.model_sheet_name ?? `model-sheet-${currentSummon.name || "invocacao"}.pdf`}
+                          className="inline-flex items-center gap-2 rounded-xl border border-border bg-card p-3 hover:border-violet-500 transition-colors"
+                        >
+                          <FileText className="h-5 w-5 text-violet-500" />
+                          <div>
+                            <p className="font-semibold text-sm">
+                              {currentSummon.model_sheet_name || "Baixar PDF da Invocação"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Clique para baixar o arquivo técnico</p>
+                          </div>
+                        </a>
+                      ) : (
+                        <div className="overflow-hidden rounded-xl border border-border bg-card p-2 max-w-2xl">
+                          <img
+                            src={currentSummon.model_sheet_url}
+                            alt={`Model sheet ${currentSummon.name || "Invocação"}`}
+                            className="max-h-[450px] w-full object-contain rounded-lg"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             </section>
           )}
         </TabsContent>

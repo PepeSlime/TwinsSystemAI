@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Calculator, Save, X } from "lucide-react";
+import { Calculator, Save, X, Ghost, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,11 +8,31 @@ import { Switch } from "@/components/ui/switch";
 import { FileDrop } from "./FileDrop";
 import { ScaleResult } from "./ScaleResult";
 import { calculateScale, parseHeight, round3 } from "@/lib/scale";
-import { fileToDataUrl, saveCharacter, useSettings, type Character } from "@/lib/store";
+import { fileToDataUrl, saveCharacter, useSettings, type Character, type CharacterSummon } from "@/lib/store";
 import { RARITIES, type CharacterRarity } from "@/lib/rarity";
 import { cn } from "@/lib/utils";
 
 const MAX_BYTES = 10 * 1024 * 1024;
+
+interface FormSummon {
+  id: string;
+  name: string;
+  heightStr: string;
+  image: string | null;
+  sheet: { url: string; name: string; type: string } | null;
+  showResult: boolean;
+}
+
+function createDefaultSummon(index: number = 0): FormSummon {
+  return {
+    id: crypto.randomUUID(),
+    name: "",
+    heightStr: "",
+    image: null,
+    sheet: null,
+    showResult: false,
+  };
+}
 
 export function CharacterForm({ editing, onDone }: { editing?: Character | null; onDone?: () => void }) {
   const settings = useSettings();
@@ -25,6 +45,11 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
   const [sheet, setSheet] = useState<{ url: string; name: string; type: string } | null>(null);
   const [showResult, setShowResult] = useState(false);
 
+  // Múltiplas Invocações (Summons)
+  const [hasSummon, setHasSummon] = useState(false);
+  const [summonsList, setSummonsList] = useState<FormSummon[]>([createDefaultSummon(0)]);
+  const [activeSummonIndex, setActiveSummonIndex] = useState(0);
+
   useEffect(() => {
     setName(editing?.name ?? "");
     setRarity(editing?.rarity ?? "raro");
@@ -34,16 +59,97 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
     setImage(editing?.image_url ?? null);
     setSheet(editing?.model_sheet_url ? { url: editing.model_sheet_url, name: editing.model_sheet_name ?? "", type: editing.model_sheet_type ?? "" } : null);
     setShowResult(!!editing?.height_m);
+
+    const isHasSummon = Boolean(editing?.has_summon);
+    setHasSummon(isHasSummon);
+
+    let initialSummons: FormSummon[] = [];
+    if (editing?.summons && editing.summons.length > 0) {
+      initialSummons = editing.summons.map((s) => ({
+        id: s.id || crypto.randomUUID(),
+        name: s.name ?? "",
+        heightStr: s.height_m ? String(s.height_m).replace(".", ",") : "",
+        image: s.image_url ?? null,
+        sheet: s.model_sheet_url
+          ? {
+              url: s.model_sheet_url,
+              name: s.model_sheet_name ?? "",
+              type: s.model_sheet_type ?? "",
+            }
+          : null,
+        showResult: Boolean(s.height_m),
+      }));
+    } else if (
+      editing?.has_summon &&
+      (editing.summon_name || editing.summon_image_url || editing.summon_height_m || editing.summon_model_sheet_url)
+    ) {
+      initialSummons = [
+        {
+          id: crypto.randomUUID(),
+          name: editing.summon_name ?? "",
+          heightStr: editing.summon_height_m ? String(editing.summon_height_m).replace(".", ",") : "",
+          image: editing.summon_image_url ?? null,
+          sheet: editing.summon_model_sheet_url
+            ? {
+                url: editing.summon_model_sheet_url,
+                name: editing.summon_model_sheet_name ?? "",
+                type: editing.summon_model_sheet_type ?? "",
+              }
+            : null,
+          showResult: Boolean(editing.summon_height_m),
+        },
+      ];
+    }
+
+    if (initialSummons.length === 0) {
+      initialSummons = [createDefaultSummon(0)];
+    }
+    setSummonsList(initialSummons);
+    setActiveSummonIndex(0);
   }, [editing]);
 
   const heightM = parseHeight(height);
   const calc = useMemo(() => (heightM ? calculateScale(heightM, settings) : null), [heightM, settings]);
 
-  async function readFile(f: File, kind: "image" | "sheet") {
+  const safeActiveIndex = Math.min(activeSummonIndex, Math.max(0, summonsList.length - 1));
+  const activeSummon = summonsList[safeActiveIndex] ?? createDefaultSummon(0);
+
+  const activeSummonHeightM = parseHeight(activeSummon.heightStr);
+  const activeSummonCalc = useMemo(
+    () => (activeSummonHeightM ? calculateScale(activeSummonHeightM, settings) : null),
+    [activeSummonHeightM, settings]
+  );
+
+  function updateActiveSummon(patch: Partial<FormSummon>) {
+    setSummonsList((prev) =>
+      prev.map((s, idx) => (idx === safeActiveIndex ? { ...s, ...patch } : s))
+    );
+  }
+
+  function addSummon() {
+    const newSummon = createDefaultSummon(summonsList.length);
+    setSummonsList((prev) => [...prev, newSummon]);
+    setActiveSummonIndex(summonsList.length);
+  }
+
+  function removeSummon(indexToRemove: number) {
+    if (summonsList.length <= 1) {
+      setSummonsList([createDefaultSummon(0)]);
+      return;
+    }
+    setSummonsList((prev) => prev.filter((_, i) => i !== indexToRemove));
+    if (safeActiveIndex >= summonsList.length - 1) {
+      setActiveSummonIndex(Math.max(0, summonsList.length - 2));
+    }
+  }
+
+  async function readFile(f: File, kind: "image" | "sheet" | "summon-image" | "summon-sheet") {
     if (f.size > MAX_BYTES) { toast.error("Arquivo muito grande (máx. 10 MB)."); return; }
     const url = await fileToDataUrl(f);
     if (kind === "image") setImage(url);
-    else setSheet({ url, name: f.name, type: f.type });
+    else if (kind === "sheet") setSheet({ url, name: f.name, type: f.type });
+    else if (kind === "summon-image") updateActiveSummon({ image: url });
+    else if (kind === "summon-sheet") updateActiveSummon({ sheet: { url, name: f.name, type: f.type } });
   }
 
   const [saving, setSaving] = useState(false);
@@ -51,7 +157,32 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) { toast.error("Informe o nome do personagem."); return; }
-    if (height && !heightM) { toast.error("Altura inválida."); return; }
+    if (height && !heightM) { toast.error("Altura do personagem inválida."); return; }
+
+    const processedSummons: CharacterSummon[] = [];
+    if (hasSummon) {
+      for (let i = 0; i < summonsList.length; i++) {
+        const s = summonsList[i];
+        const sHeightM = parseHeight(s.heightStr);
+        if (s.heightStr && !sHeightM) {
+          toast.error(`Altura inválida na invocação ${i + 1} (${s.name.trim() || `Invocação ${i + 1}`}).`);
+          return;
+        }
+        const sCalc = sHeightM ? calculateScale(sHeightM, settings) : null;
+        processedSummons.push({
+          id: s.id || crypto.randomUUID(),
+          name: s.name.trim() || `Invocação ${i + 1}`,
+          image_url: s.image,
+          height_m: sHeightM,
+          scale: sCalc ? round3(sCalc.scale) : null,
+          model_sheet_url: s.sheet?.url ?? null,
+          model_sheet_name: s.sheet?.name ?? null,
+          model_sheet_type: s.sheet?.type ?? null,
+        });
+      }
+    }
+
+    const firstSummon = processedSummons[0] ?? null;
     const scaleChanged = editing && editing.height_m !== heightM;
     const c: Character = {
       id: editing?.id ?? crypto.randomUUID(),
@@ -68,6 +199,16 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
       model_sheet_url: sheet?.url ?? null,
       model_sheet_name: sheet?.name ?? null,
       model_sheet_type: sheet?.type ?? null,
+      // Múltiplas Invocações
+      has_summon: hasSummon,
+      summons: processedSummons,
+      summon_name: firstSummon?.name ?? null,
+      summon_image_url: firstSummon?.image_url ?? null,
+      summon_height_m: firstSummon?.height_m ?? null,
+      summon_scale: firstSummon?.scale ?? null,
+      summon_model_sheet_url: firstSummon?.model_sheet_url ?? null,
+      summon_model_sheet_name: firstSummon?.model_sheet_name ?? null,
+      summon_model_sheet_type: firstSummon?.model_sheet_type ?? null,
       status: editing?.status ?? "modeling",
       completed_at: editing?.completed_at ?? null,
       created_at: editing?.created_at ?? new Date().toISOString(),
@@ -78,6 +219,9 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
       toast.success(editing ? "Personagem atualizado!" : "Personagem salvo!");
       if (!editing) {
         setName(""); setRarity("raro"); setUniverse(""); setEvoEnabled(false); setHeight(""); setImage(null); setSheet(null); setShowResult(false);
+        setHasSummon(false);
+        setSummonsList([createDefaultSummon(0)]);
+        setActiveSummonIndex(0);
       }
       onDone?.();
     } catch (err) {
@@ -88,7 +232,7 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
   }
 
   return (
-    <form onSubmit={submit} className="space-y-5 rounded-xl border border-border bg-card p-5">
+    <form onSubmit={submit} className="space-y-6 rounded-xl border border-border bg-card p-5">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">{editing ? `Editando: ${editing.name}` : "Novo personagem"}</h2>
         {editing && <Button type="button" variant="ghost" size="sm" onClick={onDone}><X className="h-4 w-4 mr-1" /> Cancelar edição</Button>}
@@ -131,15 +275,37 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
             <Input id="universe" value={universe} onChange={(e) => setUniverse(e.target.value)} placeholder="Ex.: Bleach, Jujutsu Kaisen, Marvel" />
             <p className="text-xs text-muted-foreground">Essencial para a precisão das buscas de referências e VFX.</p>
           </div>
-          <div className="flex items-center justify-between rounded-lg border border-border p-3">
-            <div className="space-y-0.5">
-              <Label htmlFor="evo-switch" className="text-sm font-medium">Forma Evoluída (Evo)</Label>
-              <p className="text-xs text-muted-foreground">Habilita slots de habilidades para a transformação / forma avançada.</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex items-center justify-between rounded-lg border border-border p-3">
+              <div className="space-y-0.5 pr-2">
+                <Label htmlFor="evo-switch" className="text-sm font-medium">Forma Evo</Label>
+                <p className="text-[11px] text-muted-foreground">Transformação avançada.</p>
+              </div>
+              <Switch id="evo-switch" checked={evoEnabled} onCheckedChange={setEvoEnabled} />
             </div>
-            <Switch id="evo-switch" checked={evoEnabled} onCheckedChange={setEvoEnabled} />
+            <div className="flex items-center justify-between rounded-lg border border-border p-3">
+              <div className="space-y-0.5 pr-2">
+                <div className="flex items-center gap-1.5">
+                  <Ghost className="h-3.5 w-3.5 text-violet-500" />
+                  <Label htmlFor="summon-switch" className="text-sm font-medium">Invocação</Label>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Pet, Stand ou summon(s).</p>
+              </div>
+              <Switch
+                id="summon-switch"
+                checked={hasSummon}
+                onCheckedChange={(checked) => {
+                  setHasSummon(checked);
+                  if (checked && summonsList.length === 0) {
+                    setSummonsList([createDefaultSummon(0)]);
+                    setActiveSummonIndex(0);
+                  }
+                }}
+              />
+            </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="height">Altura real (m ou cm)</Label>
+            <Label htmlFor="height">Altura real do personagem (m ou cm)</Label>
             <div className="flex gap-2">
               <Input id="height" inputMode="decimal" value={height} onChange={(e) => { setHeight(e.target.value); setShowResult(true); }} placeholder="1,85 ou 185" />
               <Button type="button" variant="secondary" onClick={() => { if (!heightM) toast.error("Digite uma altura válida."); setShowResult(true); }}>
@@ -154,7 +320,170 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
           <FileDrop label="Model Sheet (opcional, imagem ou PDF)" accept="image/*,application/pdf" value={sheet?.url ?? null} fileName={sheet?.name ?? null} fileType={sheet?.type ?? null} onFile={(f) => readFile(f, "sheet")} onRemove={() => setSheet(null)} />
         </div>
       </div>
-      {showResult && calc && <ScaleResult calc={calc} />}
+      {showResult && calc && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold">Escala Roblox do Personagem</h3>
+          <ScaleResult calc={calc} />
+        </div>
+      )}
+
+      {/* Painel de Múltiplas Invocações */}
+      {hasSummon && (
+        <div className="space-y-5 rounded-xl border border-violet-500/30 bg-violet-500/5 p-5 transition-all">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-violet-500/15 pb-3">
+            <div className="flex items-center gap-2">
+              <div className="rounded-lg bg-violet-500/10 p-1.5 text-violet-500">
+                <Ghost className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-foreground">
+                  Invocações do Personagem ({summonsList.length})
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Cadastre uma ou mais entidades (Mahoraga, Lobos, Stand, Sentinelas, etc.).
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addSummon}
+              className="border-violet-500/30 text-violet-400 hover:bg-violet-500/10 hover:text-violet-300"
+            >
+              <Plus className="h-4 w-4 mr-1.5" /> Adicionar outra invocação
+            </Button>
+          </div>
+
+          {/* Abas das Invocações */}
+          <div className="flex flex-wrap items-center gap-2">
+            {summonsList.map((s, idx) => {
+              const isSelected = idx === safeActiveIndex;
+              return (
+                <div
+                  key={s.id || idx}
+                  className={cn(
+                    "group flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer",
+                    isSelected
+                      ? "border-violet-500 bg-violet-500/20 text-violet-200 ring-1 ring-violet-500"
+                      : "border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                  onClick={() => setActiveSummonIndex(idx)}
+                >
+                  <Ghost className="h-3.5 w-3.5 text-violet-400" />
+                  <span>{s.name.trim() || `Invocação ${idx + 1}`}</span>
+                  {summonsList.length > 1 && (
+                    <button
+                      type="button"
+                      className="rounded p-0.5 hover:bg-destructive/20 hover:text-destructive text-muted-foreground/70 transition-colors"
+                      title="Excluir invocação"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeSummon(idx);
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Formulário da Invocação Ativa */}
+          <div className="rounded-lg border border-violet-500/20 bg-background/50 p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                <span className="text-violet-400">#{safeActiveIndex + 1}</span>
+                <span>{activeSummon.name.trim() || `Invocação ${safeActiveIndex + 1}`}</span>
+              </h4>
+              {summonsList.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => removeSummon(safeActiveIndex)}
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Remover esta invocação
+                </Button>
+              )}
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2">
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor={`summon-name-${safeActiveIndex}`}>Nome da Invocação</Label>
+                  <Input
+                    id={`summon-name-${safeActiveIndex}`}
+                    value={activeSummon.name}
+                    onChange={(e) => updateActiveSummon({ name: e.target.value })}
+                    placeholder="Ex.: Mahoraga, Lobo de Jade, Sentinela, Doombot"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor={`summon-height-${safeActiveIndex}`}>Altura real da Invocação (m ou cm)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id={`summon-height-${safeActiveIndex}`}
+                      inputMode="decimal"
+                      value={activeSummon.heightStr}
+                      onChange={(e) => updateActiveSummon({ heightStr: e.target.value, showResult: true })}
+                      placeholder="Ex.: 2,50 ou 250"
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        if (!activeSummonHeightM) toast.error("Digite uma altura válida para a invocação.");
+                        updateActiveSummon({ showResult: true });
+                      }}
+                    >
+                      <Calculator className="h-4 w-4 mr-1" /> Calcular escala
+                    </Button>
+                  </div>
+                  {activeSummonHeightM && (
+                    <p className="text-xs text-muted-foreground">
+                      Interpretado como {activeSummonHeightM.toLocaleString("pt-BR")} m
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <FileDrop
+                  label="Imagem da Invocação (opcional)"
+                  accept="image/*"
+                  value={activeSummon.image}
+                  onFile={(f) => readFile(f, "summon-image")}
+                  onRemove={() => updateActiveSummon({ image: null })}
+                />
+                <FileDrop
+                  label="Model Sheet da Invocação (opcional, imagem ou PDF)"
+                  accept="image/*,application/pdf"
+                  value={activeSummon.sheet?.url ?? null}
+                  fileName={activeSummon.sheet?.name ?? null}
+                  fileType={activeSummon.sheet?.type ?? null}
+                  onFile={(f) => readFile(f, "summon-sheet")}
+                  onRemove={() => updateActiveSummon({ sheet: null })}
+                />
+              </div>
+            </div>
+
+            {activeSummon.showResult && activeSummonCalc && (
+              <div className="space-y-2 pt-3 border-t border-border">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-semibold">Cálculo de Escala Roblox desta Invocação</h4>
+                  <span className="font-mono text-xs font-bold text-violet-400">× {round3(activeSummonCalc.scale)}</span>
+                </div>
+                <ScaleResult calc={activeSummonCalc} />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <Button type="submit" size="lg" className="w-full md:w-auto" disabled={saving}>
         <Save className="h-4 w-4 mr-1.5" /> {saving ? "Salvando..." : "Salvar personagem"}
       </Button>
