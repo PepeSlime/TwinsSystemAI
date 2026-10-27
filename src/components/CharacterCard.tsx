@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Ghost, Pencil, Trash2, User } from "lucide-react";
+import { Ghost, Images, Pencil, Trash2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./StatusBadge";
 import { RarityBadge } from "./RarityBadge";
@@ -20,6 +20,15 @@ export function CharacterCard({ c, onEdit, onDelete }: { c: Character; onEdit: (
           <div className="flex items-center justify-between gap-2">
             <h3 className="truncate text-xl font-bold">{c.name}</h3>
             <div className="flex items-center gap-1 shrink-0">
+              {c.reference_images && c.reference_images.length > 0 && (
+                <span
+                  title={`${c.reference_images.length} foto(s) de referência`}
+                  className="inline-flex items-center gap-0.5 rounded-full bg-cyan-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-400 border border-cyan-500/20"
+                >
+                  <Images className="h-2.5 w-2.5" />
+                  <span>{c.reference_images.length}</span>
+                </span>
+              )}
               {c.has_summon && (
                 <span
                   title={
@@ -44,6 +53,7 @@ export function CharacterCard({ c, onEdit, onDelete }: { c: Character; onEdit: (
               <RarityBadge rarity={c.rarity} size="xs" />
             </div>
           </div>
+
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>{c.height_m ? `${c.height_m.toLocaleString("pt-BR")} m` : "Sem altura"}</span>
             <span className="font-mono text-primary">{c.scale ? `× ${fmt(c.scale)}` : "—"}</span>

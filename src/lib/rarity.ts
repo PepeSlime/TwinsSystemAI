@@ -70,5 +70,20 @@ export const RARITIES: RarityDetails[] = [
 
 export function getRarityDetails(rarity?: string | null): RarityDetails {
   const found = RARITIES.find((r) => r.id === rarity);
-  return found ?? RARITIES[0];
+  return found ?? RARITIES[0]!;
 }
+
+
+export const RARITY_WEIGHT: Record<CharacterRarity, number> = {
+  raro: 1,
+  epico: 2,
+  lendario: 3,
+  mitico: 4,
+  secreto: 5,
+};
+
+export function getRarityWeight(rarity?: string | null): number {
+  if (!rarity) return 0;
+  return RARITY_WEIGHT[rarity as CharacterRarity] ?? 0;
+}
+

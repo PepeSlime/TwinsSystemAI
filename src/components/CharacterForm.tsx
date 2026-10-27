@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { toast } from "sonner";
-import { Calculator, Save, X, Ghost, Plus, Trash2 } from "lucide-react";
+import { Calculator, Save, X, Ghost, Plus, Trash2, Images, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,9 +8,10 @@ import { Switch } from "@/components/ui/switch";
 import { FileDrop } from "./FileDrop";
 import { ScaleResult } from "./ScaleResult";
 import { calculateScale, parseHeight, round3 } from "@/lib/scale";
-import { fileToDataUrl, saveCharacter, useSettings, type Character, type CharacterSummon } from "@/lib/store";
+import { fileToDataUrl, saveCharacter, useSettings, type Character, type CharacterSummon, type CharacterReferenceImage } from "@/lib/store";
 import { RARITIES, type CharacterRarity } from "@/lib/rarity";
 import { cn } from "@/lib/utils";
+
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
@@ -43,6 +44,8 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
   const [height, setHeight] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [sheet, setSheet] = useState<{ url: string; name: string; type: string } | null>(null);
+  const [referenceImages, setReferenceImages] = useState<CharacterReferenceImage[]>([]);
+  const refFileInputRef = useRef<HTMLInputElement>(null);
   const [showResult, setShowResult] = useState(false);
 
   // Múltiplas Invocações (Summons)
@@ -58,7 +61,9 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
     setHeight(editing?.height_m ? String(editing.height_m).replace(".", ",") : "");
     setImage(editing?.image_url ?? null);
     setSheet(editing?.model_sheet_url ? { url: editing.model_sheet_url, name: editing.model_sheet_name ?? "", type: editing.model_sheet_type ?? "" } : null);
+    setReferenceImages(editing?.reference_images ?? []);
     setShowResult(!!editing?.height_m);
+
 
     const isHasSummon = Boolean(editing?.has_summon);
     setHasSummon(isHasSummon);
@@ -152,6 +157,47 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
     else if (kind === "summon-sheet") updateActiveSummon({ sheet: { url, name: f.name, type: f.type } });
   }
 
+  async function addReferenceFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const newItems: CharacterReferenceImage[] = [];
+    for (const f of Array.from(files)) {
+      if (!f.type.startsWith("image/")) {
+        toast.error(`"${f.name}" não é uma imagem válida.`);
+        continue;
+      }
+      if (f.size > MAX_BYTES) {
+        toast.error(`"${f.name}" ultrapassa o limite de 10 MB.`);
+        continue;
+      }
+      const url = await fileToDataUrl(f);
+      newItems.push({
+        id: crypto.randomUUID(),
+        url,
+        name: f.name.replace(/\.[^/.]+$/, ""),
+        created_at: new Date().toISOString(),
+      });
+    }
+    if (newItems.length > 0) {
+      setReferenceImages((prev) => [...prev, ...newItems]);
+      toast.success(
+        newItems.length === 1
+          ? "1 foto de referência adicionada!"
+          : `${newItems.length} fotos de referência adicionadas!`
+      );
+    }
+    if (refFileInputRef.current) refFileInputRef.current.value = "";
+  }
+
+  function removeReferenceImage(id: string) {
+    setReferenceImages((prev) => prev.filter((img) => img.id !== id));
+  }
+
+  function updateReferenceImageName(id: string, newName: string) {
+    setReferenceImages((prev) =>
+      prev.map((img) => (img.id === id ? { ...img, name: newName } : img))
+    );
+  }
+
   const [saving, setSaving] = useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -163,11 +209,13 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
     if (hasSummon) {
       for (let i = 0; i < summonsList.length; i++) {
         const s = summonsList[i];
+        if (!s) continue;
         const sHeightM = parseHeight(s.heightStr);
         if (s.heightStr && !sHeightM) {
           toast.error(`Altura inválida na invocação ${i + 1} (${s.name.trim() || `Invocação ${i + 1}`}).`);
           return;
         }
+
         const sCalc = sHeightM ? calculateScale(sHeightM, settings) : null;
         processedSummons.push({
           id: s.id || crypto.randomUUID(),
@@ -199,6 +247,7 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
       model_sheet_url: sheet?.url ?? null,
       model_sheet_name: sheet?.name ?? null,
       model_sheet_type: sheet?.type ?? null,
+      reference_images: referenceImages,
       // Múltiplas Invocações
       has_summon: hasSummon,
       summons: processedSummons,
@@ -219,6 +268,7 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
       toast.success(editing ? "Personagem atualizado!" : "Personagem salvo!");
       if (!editing) {
         setName(""); setRarity("raro"); setUniverse(""); setEvoEnabled(false); setHeight(""); setImage(null); setSheet(null); setShowResult(false);
+        setReferenceImages([]);
         setHasSummon(false);
         setSummonsList([createDefaultSummon(0)]);
         setActiveSummonIndex(0);
@@ -230,6 +280,7 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
       setSaving(false);
     }
   }
+
 
   return (
     <form onSubmit={submit} className="space-y-6 rounded-xl border border-border bg-card p-5">
@@ -483,6 +534,92 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
           </div>
         </div>
       )}
+
+      {/* Seção de Fotos de Referência Extras */}
+      <div className="space-y-4 rounded-xl border border-cyan-500/30 bg-cyan-500/5 p-5 transition-all">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cyan-500/15 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="rounded-lg bg-cyan-500/10 p-2 text-cyan-400">
+              <Images className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-foreground">
+                Fotos de Referência Extras ({referenceImages.length})
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Adicione mais fotos de referência, poses, detalhes visuais ou renders para ajudar na modelagem 3D.
+              </p>
+            </div>
+          </div>
+          <div>
+            <input
+              ref={refFileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => addReferenceFiles(e.target.files)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => refFileInputRef.current?.click()}
+              className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:text-cyan-300"
+            >
+              <Plus className="h-4 w-4 mr-1.5" /> Adicionar fotos de referência
+            </Button>
+          </div>
+        </div>
+
+        {referenceImages.length === 0 ? (
+          <div
+            onClick={() => refFileInputRef.current?.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              addReferenceFiles(e.dataTransfer.files);
+            }}
+            className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-cyan-500/30 bg-background/40 p-6 text-center cursor-pointer hover:border-cyan-500/60 hover:bg-cyan-500/5 transition-all"
+          >
+            <UploadCloud className="h-7 w-7 text-cyan-400/80 mb-2" />
+            <p className="text-xs font-semibold text-foreground">Clique ou arraste fotos de referência aqui</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Selecione uma ou mais imagens (PNG, JPG, WEBP até 10 MB)</p>
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {referenceImages.map((img, idx) => (
+              <div
+                key={img.id}
+                className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2 shadow-xs transition-all hover:border-cyan-500/50"
+              >
+                <div className="relative aspect-video w-full overflow-hidden rounded bg-muted">
+                  <img src={img.url} alt={img.name || `Ref ${idx + 1}`} className="h-full w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeReferenceImage(img.id)}
+                    className="absolute right-1.5 top-1.5 rounded-full bg-black/70 p-1 text-white hover:bg-destructive hover:text-white transition-colors cursor-pointer"
+                    title="Remover foto"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="absolute left-1.5 top-1.5 rounded bg-black/60 px-1 py-0.5 text-[9px] font-bold text-white">
+                    #{idx + 1}
+                  </span>
+                </div>
+                <div className="mt-2">
+                  <Input
+                    className="h-7 text-xs px-2"
+                    placeholder="Descrição / Rótulo da foto"
+                    value={img.name ?? ""}
+                    onChange={(e) => updateReferenceImageName(img.id, e.target.value)}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <Button type="submit" size="lg" className="w-full md:w-auto" disabled={saving}>
         <Save className="h-4 w-4 mr-1.5" /> {saving ? "Salvando..." : "Salvar personagem"}

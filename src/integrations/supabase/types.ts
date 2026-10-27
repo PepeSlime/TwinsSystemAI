@@ -102,6 +102,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           evo_enabled: boolean
+          has_summon: boolean
           height_m: number | null
           id: string
           image_url: string | null
@@ -110,9 +111,18 @@ export type Database = {
           model_sheet_url: string | null
           name: string
           rarity: string
+          reference_images: Json
           scale: number | null
           scale_ok: boolean
           status: string
+          summon_height_m: number | null
+          summon_image_url: string | null
+          summon_model_sheet_name: string | null
+          summon_model_sheet_type: string | null
+          summon_model_sheet_url: string | null
+          summon_name: string | null
+          summon_scale: number | null
+          summons: Json
           universe: string | null
         }
         Insert: {
@@ -121,6 +131,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           evo_enabled?: boolean
+          has_summon?: boolean
           height_m?: number | null
           id?: string
           image_url?: string | null
@@ -129,9 +140,18 @@ export type Database = {
           model_sheet_url?: string | null
           name: string
           rarity?: string
+          reference_images?: Json
           scale?: number | null
           scale_ok?: boolean
           status?: string
+          summon_height_m?: number | null
+          summon_image_url?: string | null
+          summon_model_sheet_name?: string | null
+          summon_model_sheet_type?: string | null
+          summon_model_sheet_url?: string | null
+          summon_name?: string | null
+          summon_scale?: number | null
+          summons?: Json
           universe?: string | null
         }
         Update: {
@@ -140,6 +160,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           evo_enabled?: boolean
+          has_summon?: boolean
           height_m?: number | null
           id?: string
           image_url?: string | null
@@ -148,9 +169,18 @@ export type Database = {
           model_sheet_url?: string | null
           name?: string
           rarity?: string
+          reference_images?: Json
           scale?: number | null
           scale_ok?: boolean
           status?: string
+          summon_height_m?: number | null
+          summon_image_url?: string | null
+          summon_model_sheet_name?: string | null
+          summon_model_sheet_type?: string | null
+          summon_model_sheet_url?: string | null
+          summon_name?: string | null
+          summon_scale?: number | null
+          summons?: Json
           universe?: string | null
         }
         Relationships: []

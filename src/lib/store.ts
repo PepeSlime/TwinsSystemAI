@@ -1,10 +1,19 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+
 import { DEFAULT_SETTINGS, type Settings } from "./scale";
 import { type CharacterRarity } from "./rarity";
 
 export type { CharacterRarity };
 export type Status = "modeling" | "done";
+
+export interface CharacterReferenceImage {
+  id: string;
+  url: string;
+  name?: string | null | undefined;
+  created_at?: string | undefined;
+}
 
 export interface CharacterSummon {
   id: string;
@@ -20,9 +29,9 @@ export interface CharacterSummon {
 export interface Character {
   id: string;
   name: string;
-  rarity?: CharacterRarity;
-  universe?: string | null;
-  evo_enabled?: boolean;
+  rarity?: CharacterRarity | undefined;
+  universe?: string | null | undefined;
+  evo_enabled?: boolean | undefined;
   image_url: string | null;
   height_m: number | null;
   scale: number | null;
@@ -32,19 +41,22 @@ export interface Character {
   model_sheet_url: string | null;
   model_sheet_name: string | null;
   model_sheet_type: string | null;
-  has_summon?: boolean;
-  summons?: CharacterSummon[];
-  summon_name?: string | null;
-  summon_image_url?: string | null;
-  summon_height_m?: number | null;
-  summon_scale?: number | null;
-  summon_model_sheet_url?: string | null;
-  summon_model_sheet_name?: string | null;
-  summon_model_sheet_type?: string | null;
+  reference_images?: CharacterReferenceImage[] | undefined;
+  has_summon?: boolean | undefined;
+  summons?: CharacterSummon[] | undefined;
+  summon_name?: string | null | undefined;
+  summon_image_url?: string | null | undefined;
+  summon_height_m?: number | null | undefined;
+  summon_scale?: number | null | undefined;
+  summon_model_sheet_url?: string | null | undefined;
+  summon_model_sheet_name?: string | null | undefined;
+  summon_model_sheet_type?: string | null | undefined;
   status: Status;
   completed_at: string | null;
   created_at: string;
 }
+
+
 
 const LEGACY_KEY = "r6sm.characters";
 const SK = "r6sm.settings";
@@ -93,6 +105,18 @@ function normalize(r: Record<string, unknown>): Character {
     }];
   }
 
+  let reference_images: CharacterReferenceImage[] = [];
+  if (Array.isArray(r["reference_images"])) {
+    reference_images = (r["reference_images"] as Record<string, unknown>[])
+      .map((img, idx) => ({
+        id: String(img["id"] || `ref-${idx}`),
+        url: String(img["url"] || ""),
+        name: img["name"] ? String(img["name"]) : null,
+        created_at: img["created_at"] ? String(img["created_at"]) : undefined,
+      }))
+      .filter((img) => Boolean(img.url));
+  }
+
   return {
     ...(r as unknown as Character),
     universe: (r["universe"] as string) ?? null,
@@ -100,6 +124,7 @@ function normalize(r: Record<string, unknown>): Character {
     evo_enabled: Boolean(r["evo_enabled"]),
     height_m: r["height_m"] == null ? null : Number(r["height_m"]),
     scale: r["scale"] == null ? null : Number(r["scale"]),
+    reference_images,
     has_summon: Boolean(r["has_summon"]),
     summons,
     summon_name: (r["summon_name"] as string) ?? summons[0]?.name ?? null,
@@ -185,14 +210,39 @@ export async function saveCharacter(c: Character) {
     })
   );
 
+  const processedRefImages: CharacterReferenceImage[] = await Promise.all(
+    (c.reference_images ?? []).map(async (ref, idx) => {
+      const refId = ref.id || crypto.randomUUID();
+      const uploadedUrl = await uploadIfDataUrl(ref.url, c.id, `ref-${refId}`);
+      return {
+        id: refId,
+        url: uploadedUrl || ref.url,
+        name: ref.name ?? null,
+        created_at: ref.created_at ?? new Date().toISOString(),
+      };
+    })
+  );
+
   const firstSummon = processedSummons[0] ?? null;
 
-  const row = {
-    ...c,
+  const row: TablesInsert<"characters"> = {
+    id: c.id,
+    name: c.name,
+    universe: c.universe ?? null,
     rarity: c.rarity ?? "raro",
+    evo_enabled: Boolean(c.evo_enabled),
+    height_m: c.height_m,
+    scale: c.scale,
+    anchored_ok: c.anchored_ok,
+    cancollide_ok: c.cancollide_ok,
+    scale_ok: c.scale_ok,
     image_url: await uploadIfDataUrl(c.image_url, c.id, "image"),
     model_sheet_url: await uploadIfDataUrl(c.model_sheet_url, c.id, "sheet"),
-    summons: processedSummons,
+    model_sheet_name: c.model_sheet_name,
+    model_sheet_type: c.model_sheet_type,
+    reference_images: processedRefImages as unknown as Json,
+    has_summon: Boolean(c.has_summon),
+    summons: processedSummons as unknown as Json,
     summon_name: firstSummon?.name ?? null,
     summon_image_url: firstSummon?.image_url ?? null,
     summon_height_m: firstSummon?.height_m ?? null,
@@ -200,22 +250,74 @@ export async function saveCharacter(c: Character) {
     summon_model_sheet_url: firstSummon?.model_sheet_url ?? null,
     summon_model_sheet_name: firstSummon?.model_sheet_name ?? null,
     summon_model_sheet_type: firstSummon?.model_sheet_type ?? null,
+    status: c.status,
+    completed_at: c.completed_at,
+    created_at: c.created_at,
   };
   const { error } = await supabase.from("characters").upsert(row);
   if (error) throw new Error("Erro ao salvar: " + error.message);
   await refresh();
 }
 
+export async function addCharacterReferenceImages(
+  characterId: string,
+  newImages: { url: string; name?: string | null }[]
+) {
+  const current = chars.find((x) => x.id === characterId);
+  if (!current) throw new Error("Personagem não encontrado.");
+
+  const uploadedList: CharacterReferenceImage[] = await Promise.all(
+    newImages.map(async (item) => {
+      const id = crypto.randomUUID();
+      const uploadedUrl = await uploadIfDataUrl(item.url, characterId, `ref-${id}`);
+      return {
+        id,
+        url: uploadedUrl || item.url,
+        name: item.name ?? null,
+        created_at: new Date().toISOString(),
+      };
+    })
+  );
+
+  const updatedImages = [...(current.reference_images ?? []), ...uploadedList];
+  await updateCharacter(characterId, { reference_images: updatedImages });
+  return updatedImages;
+}
+
+export async function deleteCharacterReferenceImage(characterId: string, imageId: string) {
+  const current = chars.find((x) => x.id === characterId);
+  if (!current) throw new Error("Personagem não encontrado.");
+  const updatedImages = (current.reference_images ?? []).filter((img) => img.id !== imageId);
+  await updateCharacter(characterId, { reference_images: updatedImages });
+  return updatedImages;
+}
+
+
 export async function updateCharacter(id: string, patch: Partial<Character>) {
   chars = chars.map((x) => (x.id === id ? { ...x, ...patch } : x));
   emit();
-  const { error } = await supabase.from("characters").update(patch).eq("id", id);
+  const dbPatch: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(patch)) {
+    if (val !== undefined) {
+      if (key === "reference_images" || key === "summons") {
+        dbPatch[key] = val as unknown as Json;
+      } else if (key === "evo_enabled") {
+        dbPatch[key] = Boolean(val);
+      } else {
+        dbPatch[key] = val;
+      }
+    }
+  }
+  const { error } = await supabase.from("characters").update(dbPatch as TablesUpdate<"characters">).eq("id", id);
   if (error) {
     console.error(error);
     await refresh();
     throw new Error("Erro ao atualizar: " + error.message);
   }
 }
+
+
+
 
 export async function deleteCharacter(id: string) {
   chars = chars.filter((x) => x.id !== id);

@@ -2,11 +2,12 @@ import { getRarityDetails, type CharacterRarity } from "@/lib/rarity";
 import { cn } from "@/lib/utils";
 
 interface RarityBadgeProps {
-  rarity?: CharacterRarity | string | null;
-  size?: "xs" | "sm" | "md" | "lg";
-  showDot?: boolean;
-  className?: string;
+  rarity?: CharacterRarity | string | null | undefined;
+  size?: "xs" | "sm" | "md" | "lg" | undefined;
+  showDot?: boolean | undefined;
+  className?: string | undefined;
 }
+
 
 export function RarityBadge({
   rarity,

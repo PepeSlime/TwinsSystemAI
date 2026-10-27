@@ -11,6 +11,7 @@ import {
   Sparkles,
   Clapperboard,
   Ghost,
+  Images,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -22,9 +23,11 @@ import { StatusBadge } from "./StatusBadge";
 import { RarityBadge } from "./RarityBadge";
 import { OverridesGenerator } from "./OverridesGenerator";
 import { AbilityTabs } from "./AbilityTabs";
+import { CharacterReferencePhotos } from "./CharacterReferencePhotos";
 import { calculateScale, fmt } from "@/lib/scale";
 import { updateCharacter, useSettings, type Character } from "@/lib/store";
 import { cn } from "@/lib/utils";
+
 
 export function CharacterDetail({ c }: { c: Character }) {
   const settings = useSettings();
@@ -131,20 +134,27 @@ export function CharacterDetail({ c }: { c: Character }) {
 
       {/* Abas Principais */}
       <Tabs value={currentTab} onValueChange={setCurrentTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 max-w-xl">
+        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
           <TabsTrigger value="checklist" className="flex items-center gap-1.5">
             <Sliders className="h-4 w-4" />
-            <span>Checklist & Escala</span>
+            <span className="hidden sm:inline">Checklist & Escala</span>
+            <span className="sm:hidden">Escala</span>
+          </TabsTrigger>
+          <TabsTrigger value="references" className="flex items-center gap-1.5">
+            <Images className="h-4 w-4 text-cyan-400" />
+            <span>Fotos ({c.reference_images?.length ?? 0})</span>
           </TabsTrigger>
           <TabsTrigger value="overrides" className="flex items-center gap-1.5">
             <Sparkles className="h-4 w-4 text-primary" />
-            <span>Overrides Blender</span>
+            <span className="hidden sm:inline">Overrides</span>
+            <span className="sm:hidden">Blender</span>
           </TabsTrigger>
           <TabsTrigger value="vfx" className="flex items-center gap-1.5">
             <Clapperboard className="h-4 w-4" />
-            <span>Animações & VFX</span>
+            <span>VFX</span>
           </TabsTrigger>
         </TabsList>
+
 
         {/* Aba 1: Checklist & Escala */}
         <TabsContent value="checklist" className="space-y-6">
@@ -335,16 +345,22 @@ export function CharacterDetail({ c }: { c: Character }) {
           )}
         </TabsContent>
 
-        {/* Aba 2: Overrides Blender */}
+        {/* Aba 2: Fotos de Referência */}
+        <TabsContent value="references" className="space-y-6">
+          <CharacterReferencePhotos character={c} />
+        </TabsContent>
+
+        {/* Aba 3: Overrides Blender */}
         <TabsContent value="overrides">
           <OverridesGenerator character={c} />
         </TabsContent>
 
-        {/* Aba 3: Animações & VFX */}
+        {/* Aba 4: Animações & VFX */}
         <TabsContent value="vfx">
           <AbilityTabs character={c} />
         </TabsContent>
       </Tabs>
+
 
       <FinishCharacterDialog character={c} open={open} onOpenChange={setOpen} />
     </div>
