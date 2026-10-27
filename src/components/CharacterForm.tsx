@@ -9,12 +9,15 @@ import { FileDrop } from "./FileDrop";
 import { ScaleResult } from "./ScaleResult";
 import { calculateScale, parseHeight, round3 } from "@/lib/scale";
 import { fileToDataUrl, saveCharacter, useSettings, type Character } from "@/lib/store";
+import { RARITIES, type CharacterRarity } from "@/lib/rarity";
+import { cn } from "@/lib/utils";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
 export function CharacterForm({ editing, onDone }: { editing?: Character | null; onDone?: () => void }) {
   const settings = useSettings();
   const [name, setName] = useState("");
+  const [rarity, setRarity] = useState<CharacterRarity>("raro");
   const [universe, setUniverse] = useState("");
   const [evoEnabled, setEvoEnabled] = useState(false);
   const [height, setHeight] = useState("");
@@ -24,6 +27,7 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
 
   useEffect(() => {
     setName(editing?.name ?? "");
+    setRarity(editing?.rarity ?? "raro");
     setUniverse(editing?.universe ?? "");
     setEvoEnabled(Boolean(editing?.evo_enabled));
     setHeight(editing?.height_m ? String(editing.height_m).replace(".", ",") : "");
@@ -52,6 +56,7 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
     const c: Character = {
       id: editing?.id ?? crypto.randomUUID(),
       name: name.trim(),
+      rarity: rarity,
       universe: universe.trim() || null,
       evo_enabled: evoEnabled,
       image_url: image,
@@ -72,7 +77,7 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
       await saveCharacter(c);
       toast.success(editing ? "Personagem atualizado!" : "Personagem salvo!");
       if (!editing) {
-        setName(""); setUniverse(""); setEvoEnabled(false); setHeight(""); setImage(null); setSheet(null); setShowResult(false);
+        setName(""); setRarity("raro"); setUniverse(""); setEvoEnabled(false); setHeight(""); setImage(null); setSheet(null); setShowResult(false);
       }
       onDone?.();
     } catch (err) {
@@ -93,6 +98,33 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
           <div className="space-y-1.5">
             <Label htmlFor="name">Nome do personagem *</Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Aizen, Gojo, Guarda Real" />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Raridade do personagem *</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+              {RARITIES.map((r) => {
+                const isSelected = rarity === r.id;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => setRarity(r.id)}
+                    className={cn(
+                      "flex flex-col items-center justify-center p-2 rounded-lg border text-xs font-semibold transition-all relative cursor-pointer text-center",
+                      isSelected
+                        ? cn(r.badgeClass, "ring-2 ring-offset-1 ring-offset-background", r.borderClass)
+                        : "border-border/60 bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                    )}
+                  >
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className={cn("h-2 w-2 rounded-full", r.dotClass)} />
+                      <span className={cn(isSelected && r.textClass)}>{r.label}</span>
+                    </div>
+                    <span className="text-[10px] opacity-75 font-normal">{r.colorName}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="universe">Universo / Obra de origem (opcional)</Label>

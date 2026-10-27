@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Pencil, Trash2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./StatusBadge";
+import { RarityBadge } from "./RarityBadge";
 import { fmt } from "@/lib/scale";
 import { pendingCount, type Character } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -16,7 +17,10 @@ export function CharacterCard({ c, onEdit, onDelete }: { c: Character; onEdit: (
           <StatusBadge status={c.status} className="absolute left-2 top-2" />
         </div>
         <div className="space-y-1 p-4">
-          <h3 className="truncate text-xl font-bold">{c.name}</h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="truncate text-xl font-bold">{c.name}</h3>
+            <RarityBadge rarity={c.rarity} size="xs" />
+          </div>
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>{c.height_m ? `${c.height_m.toLocaleString("pt-BR")} m` : "Sem altura"}</span>
             <span className="font-mono text-primary">{c.scale ? `× ${fmt(c.scale)}` : "—"}</span>

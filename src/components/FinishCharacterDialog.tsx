@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CHECK_ITEMS, type CheckKey } from "./Checklist";
+import { RarityBadge } from "./RarityBadge";
 import { updateCharacter, type Character } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +29,10 @@ export function FinishCharacterDialog({ character, open, onOpenChange }: { chara
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">Verificação final</DialogTitle>
-          <DialogDescription>Confirme cada item antes de concluir “{character.name}”.</DialogDescription>
+          <DialogDescription className="flex flex-wrap items-center gap-1.5 pt-1">
+            <span>Confirme cada item antes de concluir “{character.name}”</span>
+            <RarityBadge rarity={character.rarity} size="xs" />
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
           {CHECK_ITEMS.map((it) => (

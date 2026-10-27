@@ -109,6 +109,7 @@ export type Database = {
           model_sheet_type: string | null
           model_sheet_url: string | null
           name: string
+          rarity: string
           scale: number | null
           scale_ok: boolean
           status: string
@@ -127,6 +128,7 @@ export type Database = {
           model_sheet_type?: string | null
           model_sheet_url?: string | null
           name: string
+          rarity?: string
           scale?: number | null
           scale_ok?: boolean
           status?: string
@@ -145,6 +147,7 @@ export type Database = {
           model_sheet_type?: string | null
           model_sheet_url?: string | null
           name?: string
+          rarity?: string
           scale?: number | null
           scale_ok?: boolean
           status?: string

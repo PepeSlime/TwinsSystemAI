@@ -1,12 +1,15 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { DEFAULT_SETTINGS, type Settings } from "./scale";
+import { type CharacterRarity } from "./rarity";
 
+export type { CharacterRarity };
 export type Status = "modeling" | "done";
 
 export interface Character {
   id: string;
   name: string;
+  rarity?: CharacterRarity;
   universe?: string | null;
   evo_enabled?: boolean;
   image_url: string | null;
@@ -46,6 +49,7 @@ function normalize(r: Record<string, unknown>): Character {
   return {
     ...(r as unknown as Character),
     universe: (r["universe"] as string) ?? null,
+    rarity: ((r["rarity"] as CharacterRarity) || "raro"),
     evo_enabled: Boolean(r["evo_enabled"]),
     height_m: r["height_m"] == null ? null : Number(r["height_m"]),
     scale: r["scale"] == null ? null : Number(r["scale"]),
@@ -114,6 +118,7 @@ async function uploadIfDataUrl(url: string | null, id: string, kind: string): Pr
 export async function saveCharacter(c: Character) {
   const row = {
     ...c,
+    rarity: c.rarity ?? "raro",
     image_url: await uploadIfDataUrl(c.image_url, c.id, "image"),
     model_sheet_url: await uploadIfDataUrl(c.model_sheet_url, c.id, "sheet"),
   };
