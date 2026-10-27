@@ -10,7 +10,11 @@ import { ScaleResult } from "./ScaleResult";
 import { calculateScale, parseHeight, round3 } from "@/lib/scale";
 import { fileToDataUrl, saveCharacter, useSettings, type Character, type CharacterSummon, type CharacterReferenceImage } from "@/lib/store";
 import { RARITIES, type CharacterRarity } from "@/lib/rarity";
+import { CHARACTER_CLASSES } from "@/lib/character-classes";
 import { cn } from "@/lib/utils";
+
+
+
 
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -45,13 +49,21 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
   const [image, setImage] = useState<string | null>(null);
   const [sheet, setSheet] = useState<{ url: string; name: string; type: string } | null>(null);
   const [referenceImages, setReferenceImages] = useState<CharacterReferenceImage[]>([]);
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const refFileInputRef = useRef<HTMLInputElement>(null);
   const [showResult, setShowResult] = useState(false);
+
+  function toggleClass(classId: string) {
+    setSelectedClasses((prev) =>
+      prev.includes(classId) ? prev.filter((c) => c !== classId) : [...prev, classId]
+    );
+  }
 
   // Múltiplas Invocações (Summons)
   const [hasSummon, setHasSummon] = useState(false);
   const [summonsList, setSummonsList] = useState<FormSummon[]>([createDefaultSummon(0)]);
   const [activeSummonIndex, setActiveSummonIndex] = useState(0);
+
 
   useEffect(() => {
     setName(editing?.name ?? "");
@@ -62,6 +74,7 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
     setImage(editing?.image_url ?? null);
     setSheet(editing?.model_sheet_url ? { url: editing.model_sheet_url, name: editing.model_sheet_name ?? "", type: editing.model_sheet_type ?? "" } : null);
     setReferenceImages(editing?.reference_images ?? []);
+    setSelectedClasses(editing?.classes ?? []);
     setShowResult(!!editing?.height_m);
 
 
@@ -236,6 +249,7 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
       id: editing?.id ?? crypto.randomUUID(),
       name: name.trim(),
       rarity: rarity,
+      classes: selectedClasses,
       universe: universe.trim() || null,
       evo_enabled: evoEnabled,
       image_url: image,
@@ -269,10 +283,12 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
       if (!editing) {
         setName(""); setRarity("raro"); setUniverse(""); setEvoEnabled(false); setHeight(""); setImage(null); setSheet(null); setShowResult(false);
         setReferenceImages([]);
+        setSelectedClasses([]);
         setHasSummon(false);
         setSummonsList([createDefaultSummon(0)]);
         setActiveSummonIndex(0);
       }
+
       onDone?.();
     } catch (err) {
       toast.error((err as Error).message);
@@ -321,6 +337,47 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
               })}
             </div>
           </div>
+
+          {/* Classes do Personagem (Múltipla Seleção) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Classes do personagem</Label>
+              <span className="text-[11px] text-muted-foreground">
+                {selectedClasses.length === 0
+                  ? "Selecione uma ou mais"
+                  : `${selectedClasses.length} selecionada(s)`}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {CHARACTER_CLASSES.map((cls) => {
+                const isSelected = selectedClasses.includes(cls.id);
+                return (
+                  <button
+                    key={cls.id}
+                    type="button"
+                    onClick={() => toggleClass(cls.id)}
+                    className={cn(
+                      "flex items-center justify-between p-2 rounded-lg border text-xs font-semibold transition-all cursor-pointer select-none",
+                      isSelected
+                        ? cn(cls.badgeClass, "ring-2 ring-offset-1 ring-offset-background font-bold")
+                        : "border-border/60 bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                    )}
+                  >
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className={cn("h-2 w-2 rounded-full shrink-0", cls.dotClass)} />
+                      <span className="truncate">{cls.label}</span>
+                    </div>
+                    {isSelected ? (
+                      <span className="text-[11px] font-extrabold text-primary shrink-0 ml-1">✓</span>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground/60 shrink-0 ml-1">+</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="universe">Universo / Obra de origem (opcional)</Label>
             <Input id="universe" value={universe} onChange={(e) => setUniverse(e.target.value)} placeholder="Ex.: Bleach, Jujutsu Kaisen, Marvel" />

@@ -34,7 +34,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { deleteCharacter, useCharacters, useCharactersLoaded, type Character } from "@/lib/store";
 import { RARITIES, getRarityWeight, type CharacterRarity } from "@/lib/rarity";
+import { CHARACTER_CLASSES } from "@/lib/character-classes";
 import { cn } from "@/lib/utils";
+
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -85,6 +87,7 @@ function Index() {
 
   // Filtros e Ordenação persistente
   const [selectedRarity, setSelectedRarity] = useState<string>("all");
+  const [selectedClass, setSelectedClass] = useState<string>("all");
   const [sortBy, setSortByState] = useState<SortOption>(getInitialSortBy);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -109,17 +112,31 @@ function Index() {
     return counts;
   }, [list]);
 
+  // Contagem por classe
+  const classCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const cls of CHARACTER_CLASSES) counts[cls.id] = 0;
+    for (const c of list) {
+      for (const cls of c.classes || []) {
+        const normalized = cls.toLowerCase();
+        counts[normalized] = (counts[normalized] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [list]);
+
   // Lista filtrada e ordenada
   const filteredList = useMemo(() => {
     let result = [...list];
 
-    // 1. Busca por texto
+    // 1. Busca por texto (nome, universo ou classe)
     if (searchTerm.trim()) {
       const q = searchTerm.trim().toLowerCase();
       result = result.filter(
         (c) =>
           c.name.toLowerCase().includes(q) ||
-          (c.universe && c.universe.toLowerCase().includes(q))
+          (c.universe && c.universe.toLowerCase().includes(q)) ||
+          (c.classes && c.classes.some((cls) => cls.toLowerCase().includes(q)))
       );
     }
 
@@ -128,7 +145,14 @@ function Index() {
       result = result.filter((c) => (c.rarity || "raro") === selectedRarity);
     }
 
-    // 3. Ordenação
+    // 3. Filtro por Classe
+    if (selectedClass !== "all") {
+      result = result.filter((c) =>
+        (c.classes || []).some((cls) => cls.toLowerCase() === selectedClass.toLowerCase())
+      );
+    }
+
+    // 4. Ordenação
     result.sort((a, b) => {
       if (sortBy === "alpha-asc") {
         return a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" });
@@ -153,14 +177,16 @@ function Index() {
     });
 
     return result;
-  }, [list, searchTerm, selectedRarity, sortBy]);
+  }, [list, searchTerm, selectedRarity, selectedClass, sortBy]);
 
-  const hasActiveFilters = selectedRarity !== "all" || searchTerm.trim().length > 0;
+  const hasActiveFilters = selectedRarity !== "all" || selectedClass !== "all" || searchTerm.trim().length > 0;
 
   function clearFilters() {
     setSelectedRarity("all");
+    setSelectedClass("all");
     setSearchTerm("");
   }
+
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-4 py-8">
@@ -225,6 +251,21 @@ function Index() {
               )}
             </div>
 
+            {/* Filtro por Classe */}
+            <Select value={selectedClass} onValueChange={setSelectedClass}>
+              <SelectTrigger className="h-9 w-[165px] text-xs bg-card">
+                <SelectValue placeholder="Todas as classes" />
+              </SelectTrigger>
+              <SelectContent align="end">
+                <SelectItem value="all">Todas as classes</SelectItem>
+                {CHARACTER_CLASSES.map((cls) => (
+                  <SelectItem key={cls.id} value={cls.id}>
+                    {cls.label} ({classCounts[cls.id] || 0})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <div className="flex items-center gap-1.5">
               <ArrowUpDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
               <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
@@ -240,6 +281,7 @@ function Index() {
                 </SelectContent>
               </Select>
             </div>
+
           </div>
         </div>
 

@@ -21,7 +21,9 @@ import { FinishCharacterDialog } from "./FinishCharacterDialog";
 import { ScaleResult } from "./ScaleResult";
 import { StatusBadge } from "./StatusBadge";
 import { RarityBadge } from "./RarityBadge";
+import { ClassBadge } from "./ClassBadge";
 import { OverridesGenerator } from "./OverridesGenerator";
+
 import { AbilityTabs } from "./AbilityTabs";
 import { CharacterReferencePhotos } from "./CharacterReferencePhotos";
 import { calculateScale, fmt } from "@/lib/scale";
@@ -105,7 +107,15 @@ export function CharacterDetail({ c }: { c: Character }) {
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">{c.name}</h1>
             <RarityBadge rarity={c.rarity} size="md" />
+            {c.classes && c.classes.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {c.classes.map((cls) => (
+                  <ClassBadge key={cls} classId={cls} size="sm" />
+                ))}
+              </div>
+            )}
           </div>
+
           <p className="text-sm text-muted-foreground">
             {c.height_m ? `${c.height_m.toLocaleString("pt-BR")} m de altura` : "Altura não informada"}
             {c.completed_at && ` · Concluído em ${new Date(c.completed_at).toLocaleString("pt-BR")}`}

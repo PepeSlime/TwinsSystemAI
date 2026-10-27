@@ -3,6 +3,7 @@ import { Ghost, Images, Pencil, Trash2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./StatusBadge";
 import { RarityBadge } from "./RarityBadge";
+import { ClassBadge } from "./ClassBadge";
 import { fmt } from "@/lib/scale";
 import { pendingCount, type Character } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -54,10 +55,20 @@ export function CharacterCard({ c, onEdit, onDelete }: { c: Character; onEdit: (
             </div>
           </div>
 
+          {/* Classes do Personagem */}
+          {c.classes && c.classes.length > 0 && (
+            <div className="flex flex-wrap gap-1 pt-0.5 pb-0.5">
+              {c.classes.map((cls) => (
+                <ClassBadge key={cls} classId={cls} size="xs" />
+              ))}
+            </div>
+          )}
+
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>{c.height_m ? `${c.height_m.toLocaleString("pt-BR")} m` : "Sem altura"}</span>
             <span className="font-mono text-primary">{c.scale ? `× ${fmt(c.scale)}` : "—"}</span>
           </div>
+
           <p className={cn("text-xs", pend ? "text-warning" : "text-success")}>{pend ? `${pend} item(ns) pendente(s)` : "Checklist completo"}</p>
         </div>
       </Link>

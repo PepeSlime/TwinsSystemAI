@@ -41,6 +41,7 @@ export interface Character {
   model_sheet_url: string | null;
   model_sheet_name: string | null;
   model_sheet_type: string | null;
+  classes?: string[] | undefined;
   reference_images?: CharacterReferenceImage[] | undefined;
   has_summon?: boolean | undefined;
   summons?: CharacterSummon[] | undefined;
@@ -117,6 +118,11 @@ function normalize(r: Record<string, unknown>): Character {
       .filter((img) => Boolean(img.url));
   }
 
+  let classes: string[] = [];
+  if (Array.isArray(r["classes"])) {
+    classes = (r["classes"] as unknown[]).map(String).filter(Boolean);
+  }
+
   return {
     ...(r as unknown as Character),
     universe: (r["universe"] as string) ?? null,
@@ -124,6 +130,7 @@ function normalize(r: Record<string, unknown>): Character {
     evo_enabled: Boolean(r["evo_enabled"]),
     height_m: r["height_m"] == null ? null : Number(r["height_m"]),
     scale: r["scale"] == null ? null : Number(r["scale"]),
+    classes,
     reference_images,
     has_summon: Boolean(r["has_summon"]),
     summons,
@@ -137,6 +144,7 @@ function normalize(r: Record<string, unknown>): Character {
     status: r["status"] === "done" ? "done" : "modeling",
   };
 }
+
 
 async function refresh() {
   const { data, error } = await supabase.from("characters").select("*").order("created_at", { ascending: false });
@@ -230,6 +238,7 @@ export async function saveCharacter(c: Character) {
     name: c.name,
     universe: c.universe ?? null,
     rarity: c.rarity ?? "raro",
+    classes: c.classes ?? [],
     evo_enabled: Boolean(c.evo_enabled),
     height_m: c.height_m,
     scale: c.scale,
