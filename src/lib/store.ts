@@ -7,11 +7,14 @@ import { type CharacterRarity } from "./rarity";
 
 export type { CharacterRarity };
 export type Status = "modeling" | "done";
+export type CharacterType = "hero" | "enemy";
+export type ReferenceCategory = "model_sheet" | "character" | "summon" | "weapon";
 
 export interface CharacterReferenceImage {
   id: string;
   url: string;
   name?: string | null | undefined;
+  category?: ReferenceCategory | undefined;
   created_at?: string | undefined;
 }
 
@@ -29,6 +32,7 @@ export interface CharacterSummon {
 export interface Character {
   id: string;
   name: string;
+  character_type?: CharacterType | undefined;
   rarity?: CharacterRarity | undefined;
   universe?: string | null | undefined;
   evo_enabled?: boolean | undefined;
@@ -113,6 +117,7 @@ function normalize(r: Record<string, unknown>): Character {
         id: String(img["id"] || `ref-${idx}`),
         url: String(img["url"] || ""),
         name: img["name"] ? String(img["name"]) : null,
+        category: (img["category"] as ReferenceCategory) || "character",
         created_at: img["created_at"] ? String(img["created_at"]) : undefined,
       }))
       .filter((img) => Boolean(img.url));
@@ -123,8 +128,12 @@ function normalize(r: Record<string, unknown>): Character {
     classes = (r["classes"] as unknown[]).map(String).filter(Boolean);
   }
 
+  const rawType = String(r["character_type"] || "").toLowerCase();
+  const character_type: CharacterType = rawType === "enemy" || rawType === "inimigo" ? "enemy" : "hero";
+
   return {
     ...(r as unknown as Character),
+    character_type,
     universe: (r["universe"] as string) ?? null,
     rarity: ((r["rarity"] as CharacterRarity) || "raro"),
     evo_enabled: Boolean(r["evo_enabled"]),
@@ -226,6 +235,7 @@ export async function saveCharacter(c: Character) {
         id: refId,
         url: uploadedUrl || ref.url,
         name: ref.name ?? null,
+        category: ref.category || "character",
         created_at: ref.created_at ?? new Date().toISOString(),
       };
     })
@@ -236,6 +246,7 @@ export async function saveCharacter(c: Character) {
   const row: TablesInsert<"characters"> = {
     id: c.id,
     name: c.name,
+    character_type: c.character_type ?? "hero",
     universe: c.universe ?? null,
     rarity: c.rarity ?? "raro",
     classes: c.classes ?? [],
@@ -270,7 +281,7 @@ export async function saveCharacter(c: Character) {
 
 export async function addCharacterReferenceImages(
   characterId: string,
-  newImages: { url: string; name?: string | null }[]
+  newImages: { url: string; name?: string | null; category?: ReferenceCategory }[]
 ) {
   const current = chars.find((x) => x.id === characterId);
   if (!current) throw new Error("Personagem não encontrado.");
@@ -283,6 +294,7 @@ export async function addCharacterReferenceImages(
         id,
         url: uploadedUrl || item.url,
         name: item.name ?? null,
+        category: item.category ?? "character",
         created_at: new Date().toISOString(),
       };
     })

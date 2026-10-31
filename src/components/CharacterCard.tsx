@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Ghost, Images, Pencil, Trash2, User } from "lucide-react";
+import { Ghost, Images, Pencil, Trash2, User, Shield, Skull } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./StatusBadge";
 import { RarityBadge } from "./RarityBadge";
@@ -10,24 +10,43 @@ import { cn } from "@/lib/utils";
 
 export function CharacterCard({ c, onEdit, onDelete }: { c: Character; onEdit: () => void; onDelete: () => void }) {
   const pend = pendingCount(c);
+  const totalRefs =
+    (c.image_url ? 1 : 0) +
+    (c.model_sheet_url ? 1 : 0) +
+    (c.reference_images?.length ?? 0) +
+    (c.summons?.reduce((acc, s) => acc + (s.image_url ? 1 : 0) + (s.model_sheet_url ? 1 : 0), 0) ?? 0);
+
+  const isEnemy = c.character_type === "enemy";
+
   return (
     <div className={cn("group overflow-hidden rounded-xl border bg-card transition-all hover:-translate-y-0.5 hover:shadow-glow", c.status === "done" ? "border-success/50" : "border-border")}>
       <Link to="/personagem/$id" params={{ id: c.id }} className="block">
         <div className="relative aspect-square bg-muted">
           {c.image_url ? <img src={c.image_url} alt={c.name} className="h-full w-full object-cover" /> : <User className="absolute inset-0 m-auto h-16 w-16 text-muted-foreground" />}
-          <StatusBadge status={c.status} className="absolute left-2 top-2" />
+          <div className="absolute left-2 top-2 flex flex-col gap-1 items-start">
+            <StatusBadge status={c.status} />
+            {isEnemy ? (
+              <span className="inline-flex items-center gap-1 rounded-md bg-rose-950/80 border border-rose-500/40 px-1.5 py-0.5 text-[10px] font-bold text-rose-300 backdrop-blur-xs">
+                <Skull className="h-3 w-3" /> Inimigo
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-950/80 border border-emerald-500/40 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300 backdrop-blur-xs">
+                <Shield className="h-3 w-3" /> Herói
+              </span>
+            )}
+          </div>
         </div>
         <div className="space-y-1 p-4">
           <div className="flex items-center justify-between gap-2">
             <h3 className="truncate text-xl font-bold">{c.name}</h3>
             <div className="flex items-center gap-1 shrink-0">
-              {c.reference_images && c.reference_images.length > 0 && (
+              {totalRefs > 0 && (
                 <span
-                  title={`${c.reference_images.length} foto(s) de referência`}
+                  title={`${totalRefs} referência(s) no total`}
                   className="inline-flex items-center gap-0.5 rounded-full bg-cyan-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-400 border border-cyan-500/20"
                 >
                   <Images className="h-2.5 w-2.5" />
-                  <span>{c.reference_images.length}</span>
+                  <span>{totalRefs}</span>
                 </span>
               )}
               {c.has_summon && (

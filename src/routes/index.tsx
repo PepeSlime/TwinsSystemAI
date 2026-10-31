@@ -8,6 +8,8 @@ import {
   Filter,
   X,
   Sparkles,
+  Shield,
+  Skull,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -32,7 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { deleteCharacter, useCharacters, useCharactersLoaded, type Character } from "@/lib/store";
+import { deleteCharacter, useCharacters, useCharactersLoaded, type Character, type CharacterType } from "@/lib/store";
 import { RARITIES, getRarityWeight, type CharacterRarity } from "@/lib/rarity";
 import { CHARACTER_CLASSES } from "@/lib/character-classes";
 import { cn } from "@/lib/utils";
@@ -86,6 +88,7 @@ function Index() {
   const [toDelete, setToDelete] = useState<Character | null>(null);
 
   // Filtros e Ordenação persistente
+  const [characterTypeTab, setCharacterTypeTab] = useState<CharacterType>("hero");
   const [selectedRarity, setSelectedRarity] = useState<string>("all");
   const [selectedClass, setSelectedClass] = useState<string>("all");
   const [sortBy, setSortByState] = useState<SortOption>(getInitialSortBy);
@@ -100,34 +103,51 @@ function Index() {
     }
   };
 
-
-  // Contagem por raridade
-  const rarityCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: list.length };
-    for (const r of RARITIES) counts[r.id] = 0;
+  // Contagem de heróis e inimigos
+  const { heroCount, enemyCount } = useMemo(() => {
+    let hero = 0;
+    let enemy = 0;
     for (const c of list) {
+      if (c.character_type === "enemy") enemy++;
+      else hero++;
+    }
+    return { heroCount: hero, enemyCount: enemy };
+  }, [list]);
+
+  // Personagens da aba ativa (Heróis ou Inimigos)
+  const tabCharacters = useMemo(() => {
+    return list.filter((c) =>
+      characterTypeTab === "enemy" ? c.character_type === "enemy" : c.character_type !== "enemy"
+    );
+  }, [list, characterTypeTab]);
+
+  // Contagem por raridade dentro da aba ativa
+  const rarityCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: tabCharacters.length };
+    for (const r of RARITIES) counts[r.id] = 0;
+    for (const c of tabCharacters) {
       const r = c.rarity || "raro";
       counts[r] = (counts[r] || 0) + 1;
     }
     return counts;
-  }, [list]);
+  }, [tabCharacters]);
 
-  // Contagem por classe
+  // Contagem por classe dentro da aba ativa
   const classCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const cls of CHARACTER_CLASSES) counts[cls.id] = 0;
-    for (const c of list) {
+    for (const c of tabCharacters) {
       for (const cls of c.classes || []) {
         const normalized = cls.toLowerCase();
         counts[normalized] = (counts[normalized] || 0) + 1;
       }
     }
     return counts;
-  }, [list]);
+  }, [tabCharacters]);
 
   // Lista filtrada e ordenada
   const filteredList = useMemo(() => {
-    let result = [...list];
+    let result = [...tabCharacters];
 
     // 1. Busca por texto (nome, universo ou classe)
     if (searchTerm.trim()) {
@@ -177,7 +197,7 @@ function Index() {
     });
 
     return result;
-  }, [list, searchTerm, selectedRarity, selectedClass, sortBy]);
+  }, [tabCharacters, searchTerm, selectedRarity, selectedClass, sortBy]);
 
   const hasActiveFilters = selectedRarity !== "all" || selectedClass !== "all" || searchTerm.trim().length > 0;
 
@@ -213,10 +233,62 @@ function Index() {
       <section className="space-y-4">
         {/* Barra superior de Personagens com Contador e Controles */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3">
             <h2 className="text-2xl font-bold">Personagens</h2>
+
+            {/* Duas abas: Heróis e Inimigos ao lado da escrita de personagem */}
+            <div className="flex items-center rounded-xl border border-border/80 bg-muted/30 p-1 shadow-xs">
+              <button
+                type="button"
+                onClick={() => setCharacterTypeTab("hero")}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer",
+                  characterTypeTab === "hero"
+                    ? "bg-card text-emerald-400 shadow-sm border border-emerald-500/30"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Shield className="h-3.5 w-3.5" />
+                <span>Heróis</span>
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.2 text-[10px] font-mono",
+                    characterTypeTab === "hero"
+                      ? "bg-emerald-500/20 text-emerald-300"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {heroCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCharacterTypeTab("enemy")}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer",
+                  characterTypeTab === "enemy"
+                    ? "bg-card text-rose-400 shadow-sm border border-rose-500/30"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Skull className="h-3.5 w-3.5" />
+                <span>Inimigos</span>
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.2 text-[10px] font-mono",
+                    characterTypeTab === "enemy"
+                      ? "bg-rose-500/20 text-rose-300"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {enemyCount}
+                </span>
+              </button>
+            </div>
+
             <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
-              {filteredList.length} de {list.length}
+              {filteredList.length} de {tabCharacters.length}
             </span>
             {hasActiveFilters && (
               <Button
@@ -309,7 +381,7 @@ function Index() {
                 selectedRarity === "all" ? "bg-black/20 text-white" : "bg-muted text-muted-foreground"
               )}
             >
-              {list.length}
+              {tabCharacters.length}
             </span>
           </button>
 
@@ -354,7 +426,9 @@ function Index() {
           <p className="p-10 text-center text-muted-foreground">Carregando personagens...</p>
         ) : filteredList.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border p-10 text-center text-muted-foreground space-y-2">
-            <p className="font-medium text-foreground">Nenhum personagem encontrado.</p>
+            <p className="font-medium text-foreground">
+              {characterTypeTab === "enemy" ? "Nenhum inimigo encontrado." : "Nenhum herói encontrado."}
+            </p>
             {hasActiveFilters ? (
               <p className="text-xs">
                 Nenhum resultado para os filtros selecionados.{" "}
@@ -367,7 +441,11 @@ function Index() {
                 </button>
               </p>
             ) : (
-              <p className="text-xs">Cadastre seu primeiro personagem no formulário acima.</p>
+              <p className="text-xs">
+                {characterTypeTab === "enemy"
+                  ? "Cadastre um inimigo escolhendo a opção 'Inimigo' no formulário acima."
+                  : "Cadastre seu primeiro herói no formulário acima."}
+              </p>
             )}
           </div>
         ) : (

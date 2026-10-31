@@ -99,6 +99,7 @@ export type Database = {
         Row: {
           anchored_ok: boolean
           cancollide_ok: boolean
+          character_type: string
           classes: string[]
           completed_at: string | null
           created_at: string
@@ -129,6 +130,7 @@ export type Database = {
         Insert: {
           anchored_ok?: boolean
           cancollide_ok?: boolean
+          character_type?: string
           classes?: string[]
           completed_at?: string | null
           created_at?: string
@@ -159,6 +161,7 @@ export type Database = {
         Update: {
           anchored_ok?: boolean
           cancollide_ok?: boolean
+          character_type?: string
           classes?: string[]
           completed_at?: string | null
           created_at?: string

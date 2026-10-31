@@ -1,6 +1,20 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { toast } from "sonner";
-import { Calculator, Save, X, Ghost, Plus, Trash2, Images, UploadCloud } from "lucide-react";
+import {
+  Calculator,
+  Save,
+  X,
+  Ghost,
+  Plus,
+  Trash2,
+  Images,
+  UploadCloud,
+  Shield,
+  Skull,
+  Sword,
+  FileText,
+  User,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,9 +22,19 @@ import { Switch } from "@/components/ui/switch";
 import { FileDrop } from "./FileDrop";
 import { ScaleResult } from "./ScaleResult";
 import { calculateScale, parseHeight, round3 } from "@/lib/scale";
-import { fileToDataUrl, saveCharacter, useSettings, type Character, type CharacterSummon, type CharacterReferenceImage } from "@/lib/store";
+import {
+  fileToDataUrl,
+  saveCharacter,
+  useSettings,
+  type Character,
+  type CharacterSummon,
+  type CharacterReferenceImage,
+  type CharacterType,
+  type ReferenceCategory,
+} from "@/lib/store";
 import { RARITIES, type CharacterRarity } from "@/lib/rarity";
 import { CHARACTER_CLASSES } from "@/lib/character-classes";
+import { REFERENCE_CATEGORIES, getReferenceCategoryLabel } from "@/lib/reference-categories";
 import { cn } from "@/lib/utils";
 
 
@@ -42,6 +66,7 @@ function createDefaultSummon(index: number = 0): FormSummon {
 export function CharacterForm({ editing, onDone }: { editing?: Character | null; onDone?: () => void }) {
   const settings = useSettings();
   const [name, setName] = useState("");
+  const [characterType, setCharacterType] = useState<CharacterType>("hero");
   const [rarity, setRarity] = useState<CharacterRarity>("raro");
   const [universe, setUniverse] = useState("");
   const [evoEnabled, setEvoEnabled] = useState(false);
@@ -49,6 +74,7 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
   const [image, setImage] = useState<string | null>(null);
   const [sheet, setSheet] = useState<{ url: string; name: string; type: string } | null>(null);
   const [referenceImages, setReferenceImages] = useState<CharacterReferenceImage[]>([]);
+  const [formRefCategory, setFormRefCategory] = useState<ReferenceCategory | "all">("all");
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const refFileInputRef = useRef<HTMLInputElement>(null);
   const [showResult, setShowResult] = useState(false);
@@ -67,6 +93,7 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
 
   useEffect(() => {
     setName(editing?.name ?? "");
+    setCharacterType(editing?.character_type ?? "hero");
     setRarity(editing?.rarity ?? "raro");
     setUniverse(editing?.universe ?? "");
     setEvoEnabled(Boolean(editing?.evo_enabled));
@@ -173,6 +200,7 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
   async function addReferenceFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     const newItems: CharacterReferenceImage[] = [];
+    const targetCategory: ReferenceCategory = formRefCategory === "all" ? "character" : formRefCategory;
     for (const f of Array.from(files)) {
       if (!f.type.startsWith("image/")) {
         toast.error(`"${f.name}" não é uma imagem válida.`);
@@ -187,6 +215,7 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
         id: crypto.randomUUID(),
         url,
         name: f.name.replace(/\.[^/.]+$/, ""),
+        category: targetCategory,
         created_at: new Date().toISOString(),
       });
     }
@@ -194,8 +223,8 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
       setReferenceImages((prev) => [...prev, ...newItems]);
       toast.success(
         newItems.length === 1
-          ? "1 foto de referência adicionada!"
-          : `${newItems.length} fotos de referência adicionadas!`
+          ? `1 referência adicionada em ${getReferenceCategoryLabel(targetCategory)}!`
+          : `${newItems.length} referências adicionadas!`
       );
     }
     if (refFileInputRef.current) refFileInputRef.current.value = "";
@@ -208,6 +237,12 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
   function updateReferenceImageName(id: string, newName: string) {
     setReferenceImages((prev) =>
       prev.map((img) => (img.id === id ? { ...img, name: newName } : img))
+    );
+  }
+
+  function updateReferenceImageCategory(id: string, newCategory: ReferenceCategory) {
+    setReferenceImages((prev) =>
+      prev.map((img) => (img.id === id ? { ...img, category: newCategory } : img))
     );
   }
 
@@ -248,6 +283,7 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
     const c: Character = {
       id: editing?.id ?? crypto.randomUUID(),
       name: name.trim(),
+      character_type: characterType,
       rarity: rarity,
       classes: selectedClasses,
       universe: universe.trim() || null,
@@ -281,7 +317,7 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
       await saveCharacter(c);
       toast.success(editing ? "Personagem atualizado!" : "Personagem salvo!");
       if (!editing) {
-        setName(""); setRarity("raro"); setUniverse(""); setEvoEnabled(false); setHeight(""); setImage(null); setSheet(null); setShowResult(false);
+        setName(""); setCharacterType("hero"); setRarity("raro"); setUniverse(""); setEvoEnabled(false); setHeight(""); setImage(null); setSheet(null); setShowResult(false);
         setReferenceImages([]);
         setSelectedClasses([]);
         setHasSummon(false);
@@ -306,6 +342,64 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
       </div>
       <div className="grid gap-5 md:grid-cols-2">
         <div className="space-y-4">
+          {/* Tipo de Personagem: Herói ou Inimigo */}
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">Tipo de personagem *</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setCharacterType("hero")}
+                className={cn(
+                  "flex items-center gap-3 p-2.5 rounded-xl border text-left transition-all cursor-pointer",
+                  characterType === "hero"
+                    ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 ring-2 ring-emerald-500/40 shadow-sm"
+                    : "border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                )}
+              >
+                <div
+                  className={cn(
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border",
+                    characterType === "hero"
+                      ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-300"
+                      : "border-border bg-muted text-muted-foreground"
+                  )}
+                >
+                  <Shield className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs sm:text-sm font-bold leading-tight">Herói</p>
+                  <p className="text-[10px] opacity-75 leading-tight mt-0.5">Aliado / Protagonista</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCharacterType("enemy")}
+                className={cn(
+                  "flex items-center gap-3 p-2.5 rounded-xl border text-left transition-all cursor-pointer",
+                  characterType === "enemy"
+                    ? "border-rose-500 bg-rose-500/15 text-rose-300 ring-2 ring-rose-500/40 shadow-sm"
+                    : "border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                )}
+              >
+                <div
+                  className={cn(
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border",
+                    characterType === "enemy"
+                      ? "border-rose-500/50 bg-rose-500/20 text-rose-300"
+                      : "border-border bg-muted text-muted-foreground"
+                  )}
+                >
+                  <Skull className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs sm:text-sm font-bold leading-tight">Inimigo</p>
+                  <p className="text-[10px] opacity-75 leading-tight mt-0.5">Vilão / Oponente</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="name">Nome do personagem *</Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Aizen, Gojo, Guarda Real" />
@@ -592,7 +686,7 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
         </div>
       )}
 
-      {/* Seção de Fotos de Referência Extras */}
+      {/* Seção de Referências do Personagem */}
       <div className="space-y-4 rounded-xl border border-cyan-500/30 bg-cyan-500/5 p-5 transition-all">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cyan-500/15 pb-3">
           <div className="flex items-center gap-2.5">
@@ -601,10 +695,10 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
             </div>
             <div>
               <h3 className="text-base font-bold text-foreground">
-                Fotos de Referência Extras ({referenceImages.length})
+                Referências do Personagem ({referenceImages.length})
               </h3>
               <p className="text-xs text-muted-foreground">
-                Adicione mais fotos de referência, poses, detalhes visuais ou renders para ajudar na modelagem 3D.
+                Adicione fotos organizadas em categorias (Model Sheet, Fotos Personagem, Invocações e Arma) para orientar a modelagem 3D.
               </p>
             </div>
           </div>
@@ -624,9 +718,45 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
               onClick={() => refFileInputRef.current?.click()}
               className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:text-cyan-300"
             >
-              <Plus className="h-4 w-4 mr-1.5" /> Adicionar fotos de referência
+              <Plus className="h-4 w-4 mr-1.5" /> Adicionar referências
             </Button>
           </div>
+        </div>
+
+        {/* Abas de Categorias de Referência */}
+        <div className="flex flex-wrap items-center gap-1.5 pb-1">
+          <button
+            type="button"
+            onClick={() => setFormRefCategory("all")}
+            className={cn(
+              "px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer border",
+              formRefCategory === "all"
+                ? "border-cyan-500 bg-cyan-500/20 text-cyan-300"
+                : "border-border/60 bg-muted/30 text-muted-foreground hover:bg-muted/60"
+            )}
+          >
+            Todas ({referenceImages.length})
+          </button>
+          {REFERENCE_CATEGORIES.map((cat) => {
+            const count = referenceImages.filter((img) => (img.category || "character") === cat.id).length;
+            const isSelected = formRefCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setFormRefCategory(cat.id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer border",
+                  isSelected
+                    ? "border-cyan-500 bg-cyan-500/20 text-cyan-300"
+                    : "border-border/60 bg-muted/30 text-muted-foreground hover:bg-muted/60"
+                )}
+              >
+                <span>{cat.label}</span>
+                <span className="font-mono text-[10px] opacity-75">({count})</span>
+              </button>
+            );
+          })}
         </div>
 
         {referenceImages.length === 0 ? (
@@ -641,39 +771,55 @@ export function CharacterForm({ editing, onDone }: { editing?: Character | null;
           >
             <UploadCloud className="h-7 w-7 text-cyan-400/80 mb-2" />
             <p className="text-xs font-semibold text-foreground">Clique ou arraste fotos de referência aqui</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Selecione uma ou mais imagens (PNG, JPG, WEBP até 10 MB)</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {formRefCategory !== "all"
+                ? `As fotos enviadas entrarão na categoria "${getReferenceCategoryLabel(formRefCategory)}"`
+                : "Selecione uma ou mais imagens (PNG, JPG, WEBP até 10 MB)"}
+            </p>
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {referenceImages.map((img, idx) => (
-              <div
-                key={img.id}
-                className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2 shadow-xs transition-all hover:border-cyan-500/50"
-              >
-                <div className="relative aspect-video w-full overflow-hidden rounded bg-muted">
-                  <img src={img.url} alt={img.name || `Ref ${idx + 1}`} className="h-full w-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => removeReferenceImage(img.id)}
-                    className="absolute right-1.5 top-1.5 rounded-full bg-black/70 p-1 text-white hover:bg-destructive hover:text-white transition-colors cursor-pointer"
-                    title="Remover foto"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                  <span className="absolute left-1.5 top-1.5 rounded bg-black/60 px-1 py-0.5 text-[9px] font-bold text-white">
-                    #{idx + 1}
-                  </span>
+            {referenceImages
+              .filter((img) => formRefCategory === "all" || (img.category || "character") === formRefCategory)
+              .map((img, idx) => (
+                <div
+                  key={img.id}
+                  className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2 shadow-xs transition-all hover:border-cyan-500/50"
+                >
+                  <div className="relative aspect-video w-full overflow-hidden rounded bg-muted">
+                    <img src={img.url} alt={img.name || `Ref ${idx + 1}`} className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeReferenceImage(img.id)}
+                      className="absolute right-1.5 top-1.5 rounded-full bg-black/70 p-1 text-white hover:bg-destructive hover:text-white transition-colors cursor-pointer"
+                      title="Remover foto"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                    <span className="absolute left-1.5 top-1.5 rounded bg-black/60 px-1 py-0.5 text-[9px] font-bold text-white">
+                      #{idx + 1}
+                    </span>
+                  </div>
+                  <div className="mt-2 space-y-1.5">
+                    <Input
+                      className="h-7 text-xs px-2"
+                      placeholder="Descrição / Rótulo da foto"
+                      value={img.name ?? ""}
+                      onChange={(e) => updateReferenceImageName(img.id, e.target.value)}
+                    />
+                    <select
+                      value={img.category || "character"}
+                      onChange={(e) => updateReferenceImageCategory(img.id, e.target.value as ReferenceCategory)}
+                      className="h-6 w-full rounded border border-border/70 bg-muted/40 text-[10px] font-medium px-1.5 text-muted-foreground focus:text-foreground cursor-pointer"
+                    >
+                      <option value="character">Fotos Personagem</option>
+                      <option value="model_sheet">Model Sheet</option>
+                      <option value="summon">Invocações</option>
+                      <option value="weapon">Arma</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="mt-2">
-                  <Input
-                    className="h-7 text-xs px-2"
-                    placeholder="Descrição / Rótulo da foto"
-                    value={img.name ?? ""}
-                    onChange={(e) => updateReferenceImageName(img.id, e.target.value)}
-                  />
-                </div>
-              </div>
-            ))}
+              ))}
           </div>
         )}
       </div>

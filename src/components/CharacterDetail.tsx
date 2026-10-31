@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -12,6 +12,8 @@ import {
   Clapperboard,
   Ghost,
   Images,
+  Shield,
+  Skull,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -56,6 +58,18 @@ export function CharacterDetail({ c }: { c: Character }) {
   const safeDetailIdx = Math.min(activeDetailSummonIdx, Math.max(0, summonsToDisplay.length - 1));
   const currentSummon = summonsToDisplay[safeDetailIdx] ?? summonsToDisplay[0];
 
+  const totalReferencesCount = useMemo(() => {
+    let count = 0;
+    if (c.image_url) count++;
+    if (c.model_sheet_url) count++;
+    for (const s of summonsToDisplay) {
+      if (s.image_url) count++;
+      if (s.model_sheet_url) count++;
+    }
+    count += (c.reference_images?.length ?? 0);
+    return count;
+  }, [c, summonsToDisplay]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -85,6 +99,15 @@ export function CharacterDetail({ c }: { c: Character }) {
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={c.status} />
+            {c.character_type === "enemy" ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/15 border border-rose-500/30 px-2.5 py-0.5 text-xs font-semibold text-rose-400">
+                <Skull className="h-3.5 w-3.5" /> Inimigo
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
+                <Shield className="h-3.5 w-3.5" /> Herói
+              </span>
+            )}
             {c.universe && (
               <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
                 {c.universe}
@@ -152,7 +175,7 @@ export function CharacterDetail({ c }: { c: Character }) {
           </TabsTrigger>
           <TabsTrigger value="references" className="flex items-center gap-1.5">
             <Images className="h-4 w-4 text-cyan-400" />
-            <span>Fotos ({c.reference_images?.length ?? 0})</span>
+            <span>Referências ({totalReferencesCount})</span>
           </TabsTrigger>
           <TabsTrigger value="overrides" className="flex items-center gap-1.5">
             <Sparkles className="h-4 w-4 text-primary" />
