@@ -11,6 +11,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
+import { CompactPunchWidget } from "@/components/ponto/CompactPunchWidget";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
@@ -120,8 +121,53 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <div className="min-h-screen bg-background text-foreground flex flex-col">
+        {/* Barra de Navegação Global Discreta com Componente de Ponto */}
+        <header className="sticky top-0 z-30 w-full border-b border-border/80 bg-background/85 backdrop-blur-md">
+          <div className="mx-auto max-w-6xl flex items-center justify-between px-4 py-2 gap-3">
+            <div className="flex items-center gap-3 sm:gap-6">
+              <Link to="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold shadow-glow text-xs">
+                  R6
+                </div>
+                <span className="font-extrabold text-sm tracking-tight text-foreground hidden sm:inline">
+                  Twins System
+                </span>
+              </Link>
+
+              <nav className="flex items-center gap-1 sm:gap-2">
+                <Link
+                  to="/"
+                  className="px-2.5 py-1 text-xs font-semibold rounded-lg text-muted-foreground hover:text-foreground transition-colors [&.active]:bg-muted/60 [&.active]:text-foreground"
+                >
+                  Personagens
+                </Link>
+                <Link
+                  to="/ponto"
+                  className="px-2.5 py-1 text-xs font-semibold rounded-lg text-muted-foreground hover:text-foreground transition-colors [&.active]:bg-primary/10 [&.active]:text-primary"
+                >
+                  Ponto
+                </Link>
+                <Link
+                  to="/fila"
+                  className="px-2.5 py-1 text-xs font-semibold rounded-lg text-muted-foreground hover:text-foreground transition-colors [&.active]:bg-muted/60 [&.active]:text-foreground"
+                >
+                  Fila IA
+                </Link>
+              </nav>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <CompactPunchWidget />
+            </div>
+          </div>
+        </header>
+
+        {/* Required: nested routes render here */}
+        <main className="flex-1">
+          <Outlet />
+        </main>
+      </div>
       <Toaster position="bottom-right" theme="dark" />
     </QueryClientProvider>
   );

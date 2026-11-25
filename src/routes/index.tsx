@@ -10,6 +10,7 @@ import {
   Sparkles,
   Shield,
   Skull,
+  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -218,7 +219,12 @@ function Index() {
             <p className="text-sm text-muted-foreground">Escala e checklist de personagens R6</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link to="/ponto">
+              <Clock className="h-4 w-4 mr-1.5 text-primary" /> Ponto
+            </Link>
+          </Button>
           <Button asChild variant="outline" size="sm">
             <Link to="/fila">
               <Activity className="h-4 w-4 mr-1.5 text-primary" /> Fila de IA

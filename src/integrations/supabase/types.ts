@@ -465,6 +465,214 @@ export type Database = {
           },
         ]
       }
+      employees: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          daily_hours: number
+          department: string
+          email: string | null
+          id: string
+          is_admin: boolean
+          name: string
+          role: string
+          status: string
+          work_schedule: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          daily_hours?: number
+          department?: string
+          email?: string | null
+          id?: string
+          is_admin?: boolean
+          name: string
+          role?: string
+          status?: string
+          work_schedule?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          daily_hours?: number
+          department?: string
+          email?: string | null
+          id?: string
+          is_admin?: boolean
+          name?: string
+          role?: string
+          status?: string
+          work_schedule?: string
+        }
+        Relationships: []
+      }
+      time_entries: {
+        Row: {
+          created_at: string
+          date: string
+          employee_id: string
+          entry_time: string | null
+          exit_time: string | null
+          id: string
+          inconsistency_type: string | null
+          lunch_end: string | null
+          lunch_start: string | null
+          notes: string | null
+          status: string
+          total_worked_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          employee_id: string
+          entry_time?: string | null
+          exit_time?: string | null
+          id?: string
+          inconsistency_type?: string | null
+          lunch_end?: string | null
+          lunch_start?: string | null
+          notes?: string | null
+          status?: string
+          total_worked_minutes?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          employee_id?: string
+          entry_time?: string | null
+          exit_time?: string | null
+          id?: string
+          inconsistency_type?: string | null
+          lunch_end?: string | null
+          lunch_start?: string | null
+          notes?: string | null
+          status?: string
+          total_worked_minutes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_adjustment_requests: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          date: string
+          employee_id: string
+          entry_id: string | null
+          id: string
+          original_data: Json | null
+          reason: string
+          requested_time: string | null
+          requested_time_str: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          target_punch: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          date: string
+          employee_id: string
+          entry_id?: string | null
+          id?: string
+          original_data?: Json | null
+          reason: string
+          requested_time?: string | null
+          requested_time_str?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          target_punch: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          date?: string
+          employee_id?: string
+          entry_id?: string | null
+          id?: string
+          original_data?: Json | null
+          reason?: string
+          requested_time?: string | null
+          requested_time_str?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          target_punch?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_adjustment_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_adjustment_requests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "time_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          employee_id: string | null
+          end_date: string
+          event_type: string
+          id: string
+          start_date: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          employee_id?: string | null
+          end_date: string
+          event_type: string
+          id?: string
+          start_date: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          employee_id?: string | null
+          end_date?: string
+          event_type?: string
+          id?: string
+          start_date?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
