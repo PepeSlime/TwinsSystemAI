@@ -5,7 +5,11 @@ import {
   determineJourneyStatus,
   getNextPunchAction,
   detectInconsistencies,
+  isWeekend,
+  getDailyTargetHours,
+  getDailyTargetMinutes,
   type TimeEntry,
+  type Employee,
 } from "./ponto-store";
 
 describe("ponto-store logic tests", () => {
@@ -90,5 +94,38 @@ describe("ponto-store logic tests", () => {
 
     const inconsistency = detectInconsistencies(pastEntry);
     expect(inconsistency).toBe("Falta retorno do almoço e saída");
+  });
+
+  it("calculates weekend target as 4h and weekday target as 8h", () => {
+    const employeeMock: Partial<Employee> = {
+      id: "emp-test",
+      name: "Teste",
+      daily_hours: 8,
+      weekend_daily_hours: 4,
+    };
+
+    // 2026-11-27 é Sexta-feira (dia útil)
+    const friday = "2026-11-27";
+    expect(isWeekend(friday)).toBe(false);
+    expect(getDailyTargetHours(employeeMock as Employee, friday)).toBe(8);
+    expect(getDailyTargetMinutes(employeeMock as Employee, friday)).toBe(480);
+
+    // 2026-11-28 é Sábado (fim de semana)
+    const saturday = "2026-11-28";
+    expect(isWeekend(saturday)).toBe(true);
+    expect(getDailyTargetHours(employeeMock as Employee, saturday)).toBe(4);
+    expect(getDailyTargetMinutes(employeeMock as Employee, saturday)).toBe(240);
+
+    // 2026-11-29 é Domingo (fim de semana)
+    const sunday = "2026-11-29";
+    expect(isWeekend(sunday)).toBe(true);
+    expect(getDailyTargetHours(employeeMock as Employee, sunday)).toBe(4);
+    expect(getDailyTargetMinutes(employeeMock as Employee, sunday)).toBe(240);
+
+    // Colaborador sem weekend_daily_hours explícito deve adotar 4h como fallback
+    const empFallback: Partial<Employee> = {
+      daily_hours: 8,
+    };
+    expect(getDailyTargetHours(empFallback as Employee, saturday)).toBe(4);
   });
 });

@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS public.employees (
   role text NOT NULL DEFAULT 'Colaborador',
   work_schedule text NOT NULL DEFAULT '09:00 - 18:00 (1h intervalo)',
   daily_hours numeric NOT NULL DEFAULT 8,
+  weekend_daily_hours numeric NOT NULL DEFAULT 4,
   status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
   is_admin boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now()

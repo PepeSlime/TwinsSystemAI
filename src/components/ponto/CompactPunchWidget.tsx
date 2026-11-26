@@ -30,6 +30,8 @@ import {
   calculateWorkedMinutes,
   formatMinutes,
   formatTimeOnly,
+  getDailyTargetHours,
+  isWeekend,
   type JourneyStatus,
 } from "@/lib/ponto-store";
 import { cn } from "@/lib/utils";
@@ -264,7 +266,8 @@ export function CompactPunchWidget({ className }: { className?: string }) {
                 {formatMinutes(workedMinutes)}
               </p>
               <p className="text-[10px] text-muted-foreground">
-                Meta: {activeEmployee?.daily_hours || 8}h/dia
+                Meta: {getDailyTargetHours(activeEmployee, currentTime)}h
+                {isWeekend(currentTime) ? " (Fim de semana)" : "/dia"}
               </p>
             </div>
           </div>

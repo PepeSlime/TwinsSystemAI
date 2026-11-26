@@ -38,6 +38,7 @@ export function EmployeeFormDialog({
   const [role, setRole] = useState("");
   const [workSchedule, setWorkSchedule] = useState("09:00 - 18:00 (1h intervalo)");
   const [dailyHours, setDailyHours] = useState("8");
+  const [weekendDailyHours, setWeekendDailyHours] = useState("4");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [isAdmin, setIsAdmin] = useState(false);
@@ -52,6 +53,7 @@ export function EmployeeFormDialog({
       setRole(employeeToEdit.role);
       setWorkSchedule(employeeToEdit.work_schedule);
       setDailyHours(String(employeeToEdit.daily_hours));
+      setWeekendDailyHours(String(employeeToEdit.weekend_daily_hours ?? 4));
       setAvatarUrl(employeeToEdit.avatar_url || "");
       setStatus(employeeToEdit.status);
       setIsAdmin(employeeToEdit.is_admin);
@@ -62,6 +64,7 @@ export function EmployeeFormDialog({
       setRole("");
       setWorkSchedule("09:00 - 18:00 (1h intervalo)");
       setDailyHours("8");
+      setWeekendDailyHours("4");
       setAvatarUrl("");
       setStatus("active");
       setIsAdmin(false);
@@ -85,6 +88,7 @@ export function EmployeeFormDialog({
         role: role.trim() || "Colaborador",
         work_schedule: workSchedule.trim(),
         daily_hours: Number(dailyHours) || 8,
+        weekend_daily_hours: Number(weekendDailyHours) || 4,
         avatar_url: avatarUrl.trim() || null,
         status,
         is_admin: isAdmin,
@@ -204,11 +208,11 @@ export function EmployeeFormDialog({
             </div>
           </div>
 
-          {/* Horário de Trabalho e Carga Horária */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2 space-y-1.5">
+          {/* Horário de Trabalho e Cargas Horárias */}
+          <div className="space-y-3">
+            <div className="space-y-1.5">
               <Label htmlFor="emp-sched" className="text-xs font-semibold">
-                Horário Contratual
+                Horário Contratual (Exibição)
               </Label>
               <Input
                 id="emp-sched"
@@ -219,19 +223,52 @@ export function EmployeeFormDialog({
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="emp-hours" className="text-xs font-semibold">
-                Carga (h/dia)
-              </Label>
-              <Input
-                id="emp-hours"
-                type="number"
-                min="1"
-                max="12"
-                value={dailyHours}
-                onChange={(e) => setDailyHours(e.target.value)}
-                className="h-9 text-xs bg-muted/30 font-mono"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="emp-hours" className="text-xs font-semibold">
+                    Carga Seg - Sex
+                  </Label>
+                  <span className="text-[10px] text-muted-foreground">Dia útil</span>
+                </div>
+                <div className="relative">
+                  <Input
+                    id="emp-hours"
+                    type="number"
+                    min="1"
+                    max="12"
+                    value={dailyHours}
+                    onChange={(e) => setDailyHours(e.target.value)}
+                    className="h-9 text-xs bg-muted/30 font-mono pr-7"
+                  />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">
+                    h
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="emp-weekend-hours" className="text-xs font-semibold">
+                    Carga Sáb / Dom
+                  </Label>
+                  <span className="text-[10px] text-amber-400 font-semibold">Fim de Semana</span>
+                </div>
+                <div className="relative">
+                  <Input
+                    id="emp-weekend-hours"
+                    type="number"
+                    min="1"
+                    max="12"
+                    value={weekendDailyHours}
+                    onChange={(e) => setWeekendDailyHours(e.target.value)}
+                    className="h-9 text-xs bg-muted/30 font-mono pr-7 border-amber-500/30"
+                  />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">
+                    h
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 

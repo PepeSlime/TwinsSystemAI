@@ -16,6 +16,7 @@ export interface Employee {
   role: string;
   work_schedule: string;
   daily_hours: number;
+  weekend_daily_hours?: number;
   status: "active" | "inactive";
   is_admin: boolean;
   created_at: string;
@@ -84,6 +85,7 @@ export const DEFAULT_EMPLOYEES: Employee[] = [
     role: "Gestora de RH / Admin",
     work_schedule: "09:00 - 18:00 (1h intervalo)",
     daily_hours: 8,
+    weekend_daily_hours: 4,
     status: "active",
     is_admin: true,
     created_at: new Date().toISOString(),
@@ -97,6 +99,7 @@ export const DEFAULT_EMPLOYEES: Employee[] = [
     role: "Lead Game Developer",
     work_schedule: "09:00 - 18:00 (1h intervalo)",
     daily_hours: 8,
+    weekend_daily_hours: 4,
     status: "active",
     is_admin: false,
     created_at: new Date().toISOString(),
@@ -110,6 +113,7 @@ export const DEFAULT_EMPLOYEES: Employee[] = [
     role: "Artista 3D / Modeler",
     work_schedule: "10:00 - 19:00 (1h intervalo)",
     daily_hours: 8,
+    weekend_daily_hours: 4,
     status: "active",
     is_admin: false,
     created_at: new Date().toISOString(),
@@ -123,6 +127,7 @@ export const DEFAULT_EMPLOYEES: Employee[] = [
     role: "Animadora R6 / VFX Artist",
     work_schedule: "09:00 - 18:00 (1h intervalo)",
     daily_hours: 8,
+    weekend_daily_hours: 4,
     status: "active",
     is_admin: false,
     created_at: new Date().toISOString(),
@@ -198,6 +203,38 @@ function subscribe(l: () => void) {
 // ----------------------------------------------------------------------------
 // Funções de Cálculo de Jornada e Tempo
 // ----------------------------------------------------------------------------
+
+export function isWeekend(dateOrStr: string | Date): boolean {
+  if (typeof dateOrStr === "string") {
+    const raw = dateOrStr.split("T")[0]!;
+    const parts = raw.split("-").map(Number);
+    if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
+      const d = new Date(parts[0], parts[1] - 1, parts[2]);
+      const day = d.getDay();
+      return day === 0 || day === 6;
+    }
+  }
+  const d = dateOrStr instanceof Date ? dateOrStr : new Date(dateOrStr);
+  const day = d.getDay();
+  return day === 0 || day === 6;
+}
+
+export function getDailyTargetHours(
+  employee: Employee | null | undefined,
+  dateOrStr: string | Date = new Date()
+): number {
+  if (isWeekend(dateOrStr)) {
+    return employee?.weekend_daily_hours ?? 4;
+  }
+  return employee?.daily_hours ?? 8;
+}
+
+export function getDailyTargetMinutes(
+  employee: Employee | null | undefined,
+  dateOrStr: string | Date = new Date()
+): number {
+  return getDailyTargetHours(employee, dateOrStr) * 60;
+}
 
 export function calculateWorkedMinutes(
   entryTime: string | null,
@@ -398,6 +435,7 @@ async function refreshFromSupabase() {
         role: r.role,
         work_schedule: r.work_schedule,
         daily_hours: Number(r.daily_hours) || 8,
+        weekend_daily_hours: Number((r as Record<string, unknown>).weekend_daily_hours) || 4,
         status: (r.status as "active" | "inactive") || "active",
         is_admin: Boolean(r.is_admin),
         created_at: r.created_at,
@@ -877,6 +915,7 @@ export async function saveEmployee(employee: Partial<Employee> & { name: string 
     role: employee.role || "Colaborador",
     work_schedule: employee.work_schedule || "09:00 - 18:00 (1h intervalo)",
     daily_hours: employee.daily_hours || 8,
+    weekend_daily_hours: employee.weekend_daily_hours ?? 4,
     status: employee.status || "active",
     is_admin: Boolean(employee.is_admin),
     created_at: employee.created_at || now,
@@ -903,7 +942,7 @@ export async function saveEmployee(employee: Partial<Employee> & { name: string 
       daily_hours: fullEmployee.daily_hours,
       status: fullEmployee.status,
       is_admin: fullEmployee.is_admin,
-    });
+    } as any);
   } catch (err) {
     console.error("Erro salvando colaborador no Supabase:", err);
   }

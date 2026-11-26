@@ -29,6 +29,8 @@ import {
   formatTimeOnly,
   getTodayDateStr,
   calculateWorkedMinutes,
+  isWeekend,
+  getDailyTargetHours,
   type CalendarEvent,
   type CalendarEventType,
 } from "@/lib/ponto-store";
@@ -368,9 +370,9 @@ export function PontoCalendario() {
           {selectedDayData && (
             <>
               <DialogHeader className="border-b border-border pb-3">
-                <DialogTitle className="text-base font-bold flex items-center gap-2">
-                  <CalendarCheck className="h-5 w-5 text-primary" />
-                  <span>
+                <DialogTitle className="text-base font-bold flex flex-wrap items-center gap-2">
+                  <CalendarCheck className="h-5 w-5 text-primary shrink-0" />
+                  <span className="capitalize">
                     Detalhes do Dia —{" "}
                     {new Date(selectedDayData.date + "T00:00:00").toLocaleDateString(
                       "pt-BR",
@@ -382,6 +384,15 @@ export function PontoCalendario() {
                       }
                     )}
                   </span>
+                  {isWeekend(selectedDayData.date) ? (
+                    <span className="rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2 py-0.5">
+                      Fim de Semana (Carga: {getDailyTargetHours(activeEmployee, selectedDayData.date)}h)
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-primary/10 text-primary border border-primary/20 text-[10px] font-semibold px-2 py-0.5">
+                      Dia Útil (Carga: {getDailyTargetHours(activeEmployee, selectedDayData.date)}h)
+                    </span>
+                  )}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground">
                   Eventos agendados e marcações de ponto realizadas nesta data.

@@ -326,7 +326,7 @@ export function PontoColaboradores() {
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-muted-foreground">Jornada:</span>
                   <span className="font-mono text-foreground font-semibold">
-                    {emp.daily_hours}h/dia
+                    {emp.daily_hours}h sem. · {emp.weekend_daily_hours || 4}h fds
                   </span>
                 </div>
 
@@ -454,10 +454,10 @@ export function PontoColaboradores() {
                     Carga Contratual
                   </span>
                   <p className="text-base font-extrabold text-foreground font-mono">
-                    {selectedEmployeeProfile.daily_hours}h / dia
+                    {selectedEmployeeProfile.daily_hours}h / {selectedEmployeeProfile.weekend_daily_hours || 4}h
                   </p>
                   <p className="text-[10px] text-muted-foreground">
-                    {selectedEmployeeProfile.work_schedule}
+                    Semana: {selectedEmployeeProfile.daily_hours}h · FDS: {selectedEmployeeProfile.weekend_daily_hours || 4}h
                   </p>
                 </div>
 

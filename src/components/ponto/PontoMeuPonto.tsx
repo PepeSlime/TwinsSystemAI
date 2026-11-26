@@ -31,6 +31,9 @@ import {
   formatTimeOnly,
   getTodayDateStr,
   calculateWorkedMinutes,
+  getDailyTargetHours,
+  getDailyTargetMinutes,
+  isWeekend,
   type TimeEntry,
   type PunchType,
 } from "@/lib/ponto-store";
@@ -115,9 +118,11 @@ export function PontoMeuPonto() {
       }
     }
 
-    const dailyTargetMinutes = (activeEmployee?.daily_hours || 8) * 60;
-    // Saldo do mês aproximado (considerando dias trabalhados registrados)
-    const expectedMonthMinutes = monthEntries.length * dailyTargetMinutes;
+    // Saldo do mês somando a meta específica de cada dia registrado (8h seg-sex, 4h sáb-dom)
+    const expectedMonthMinutes = monthEntries.reduce(
+      (acc, entry) => acc + getDailyTargetMinutes(activeEmployee, entry.date),
+      0
+    );
     const balanceMinutes = monthMinutes - expectedMonthMinutes;
 
     return {
@@ -196,7 +201,7 @@ export function PontoMeuPonto() {
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              {activeEmployee?.role} · {activeEmployee?.department} · Jornada: {activeEmployee?.work_schedule}
+              {activeEmployee?.role} · {activeEmployee?.department} · Carga: {activeEmployee?.daily_hours || 8}h (Seg-Sex) · {activeEmployee?.weekend_daily_hours || 4}h (Sáb-Dom)
             </p>
           </div>
         </div>
@@ -244,7 +249,10 @@ export function PontoMeuPonto() {
           <p className="text-2xl font-extrabold text-foreground font-mono">
             {formatMinutes(metrics.todayMinutes)}
           </p>
-          <p className="text-[10px] text-muted-foreground">Meta diária: {activeEmployee?.daily_hours || 8}h</p>
+          <p className="text-[10px] text-muted-foreground">
+            Meta diária: {getDailyTargetHours(activeEmployee, today)}h
+            {isWeekend(today) ? " (Fim de semana)" : " (Dia útil)"}
+          </p>
         </div>
 
         {/* Horas na Semana */}
@@ -334,9 +342,10 @@ export function PontoMeuPonto() {
                     entry.lunch_end,
                     entry.exit_time
                   );
-                  const dailyTarget = (activeEmployee?.daily_hours || 8) * 60;
+                  const dailyTarget = getDailyTargetMinutes(activeEmployee, entry.date);
                   const dayBalance = workedMinutes - dailyTarget;
                   const isToday = entry.date === today;
+                  const isWeekendDay = isWeekend(entry.date);
 
                   const dateObj = new Date(entry.date + "T00:00:00");
                   const weekday = dateObj.toLocaleDateString("pt-BR", { weekday: "short" });
@@ -363,6 +372,11 @@ export function PontoMeuPonto() {
                           <span className="text-muted-foreground font-mono">
                             {formattedDate}
                           </span>
+                          {isWeekendDay && (
+                            <span className="rounded bg-amber-500/15 text-amber-300 text-[9px] px-1 font-bold border border-amber-500/30">
+                              FDS ({getDailyTargetHours(activeEmployee, entry.date)}h)
+                            </span>
+                          )}
                           {isToday && (
                             <span className="rounded bg-primary/20 text-primary text-[9px] px-1 font-bold">
                               Hoje
